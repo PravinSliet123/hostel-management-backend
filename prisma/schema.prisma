@@ -1,0 +1,183 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  WARDEN
+  ADMIN
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
+enum HostelType {
+  BOYS
+  GIRLS
+}
+
+enum RoomType {
+  SINGLE
+  DOUBLE
+  TRIPLE
+}
+
+model User {
+  id                Int                @id @default(autoincrement())
+  email             String             @unique
+  password          String
+  role              UserRole
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  student           Student?
+  warden            Warden?
+  admin             Admin?
+  hostelApplication HostelApplication?
+  payments          Payment[]
+}
+
+model Student {
+  id               Int             @id @default(autoincrement())
+  userId           Int             @unique
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName         String
+  fatherName       String
+  gender           String
+  department       String
+  rank             Int
+  registrationNo   String          @unique
+  rollNo           String          @unique
+  year             Int
+  semester         Int
+  aadharNo         String
+  mobileNo         String
+  address          String
+  pinCode          String
+  distanceFromCollege Float
+  roomAllocations  RoomAllocation[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model Warden {
+  id           Int           @id @default(autoincrement())
+  userId       Int          @unique
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName     String
+  fatherName   String
+  mobileNo     String
+  aadharNo     String
+  address      String
+  zipCode      String
+  isApproved   Boolean      @default(false)
+  hostels      WardenHostel[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Hostel {
+  id           Int           @id @default(autoincrement())
+  name         String        @unique
+  type         HostelType
+  totalRooms   Int          @default(0)
+  vacantRooms  Int          @default(0)
+  rooms        Room[]
+  wardens      WardenHostel[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Room {
+  id           Int             @id @default(autoincrement())
+  roomNumber   String
+  roomType     RoomType
+  totalSeats   Int
+  vacantSeats  Int
+  hostelId     Int
+  hostel       Hostel          @relation(fields: [hostelId], references: [id])
+  allocations  RoomAllocation[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@unique([hostelId, roomNumber])
+}
+
+model HostelApplication {
+  id           Int               @id @default(autoincrement())
+  student      User              @relation(fields: [studentId], references: [id])
+  studentId    Int               @unique
+  status       ApplicationStatus @default(PENDING)
+  appliedAt    DateTime          @default(now())
+  processedAt  DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+}
+
+model Payment {
+  id           Int           @id @default(autoincrement())
+  user         User          @relation(fields: [userId], references: [id])
+  userId       Int
+  amount       Float
+  description  String
+  status       PaymentStatus @default(PENDING)
+  dueDate      DateTime
+  paidAt       DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model WardenHostel {
+  id        Int      @id @default(autoincrement())
+  warden    Warden   @relation(fields: [wardenId], references: [id], onDelete: Cascade)
+  wardenId  Int
+  hostel    Hostel   @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  hostelId  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([wardenId, hostelId])
+}
+
+model RoomAllocation {
+  id           Int       @id @default(autoincrement())
+  student      Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId    Int
+  room         Room      @relation(fields: [roomId], references: [id])
+  roomId       Int
+  semester     Int
+  year         Int
+  isActive     Boolean   @default(true)
+  allocatedAt  DateTime  @default(now())
+  deallocatedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([studentId, semester, year, isActive])
+  @@index([studentId, isActive])
+}

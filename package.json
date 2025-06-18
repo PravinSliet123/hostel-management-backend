@@ -1,0 +1,42 @@
+{
+  "name": "my-v0-project",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "nodemon server.js",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.9.1",
+    "@prisma/client": "latest",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "latest",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "1.0.4",
+    "cors": "latest",
+    "date-fns": "4.1.0",
+    "dotenv": "^16.5.0",
+    "embla-carousel-react": "8.5.1",
+    "express": "latest",
+    "express-validator": "latest",
+    "helmet": "latest",
+    "input-otp": "1.4.1",
+    "jsonwebtoken": "latest",
+    "morgan": "latest",
+    "nodemailer": "^7.0.3",
+    "nodemon": "^3.1.10",
+    "prisma": "latest",
+    "react": "^19",
+    "vaul": "^0.9.6",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5"
+  }
+}
