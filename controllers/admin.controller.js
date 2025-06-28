@@ -1,7 +1,7 @@
 import prisma from "../config/db.js"
 import bcrypt from "bcrypt"
-import { generateUID } from "../utils/uid.generator.js"
 import { sendEMail } from "../utils/email.service.js"
+import { generateRandomPassword } from "../utils/password.generator.js"
 
 // Get all hostels
 export const getAllHostels = async (req, res) => {
@@ -191,6 +191,258 @@ export const createRoom = async (req, res) => {
     })
   } catch (error) {
     console.error("Error creating room:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+
+// Update room
+export const updateRoom = async (req, res) => {
+  try {
+    if (!req.body) {
+      return res.status(400).json({ message: "Request body is required" })
+    }
+
+    const { roomId } = req.params
+    const { roomNumber, totalSeats, roomType, vacantSeats } = req.body
+
+    // Validate required fields
+    if (!roomNumber && !totalSeats && !roomType && vacantSeats === undefined) {
+      return res.status(400).json({
+        message: "At least one field (roomNumber, totalSeats, roomType, or vacantSeats) is required"
+      })
+    }
+
+    // Convert roomId to number
+    const roomIdNum = Number.parseInt(roomId)
+    if (isNaN(roomIdNum)) {
+      return res.status(400).json({
+        message: "roomId must be a valid number"
+      })
+    }
+
+    // Check if room exists
+    const existingRoom = await prisma.room.findUnique({
+      where: { id: roomIdNum },
+      include: {
+        hostel: true,
+        allocations: {
+          where: {
+            isActive: true
+          }
+        }
+      }
+    })
+
+    if (!existingRoom) {
+      return res.status(404).json({ message: "Room not found" })
+    }
+
+    // Prepare update data
+    const updateData = {}
+
+    if (roomNumber !== undefined) {
+      updateData.roomNumber = String(roomNumber)
+    }
+
+    if (totalSeats !== undefined) {
+      const totalSeatsNum = Number.parseInt(totalSeats)
+      if (isNaN(totalSeatsNum) || totalSeatsNum <= 0) {
+        return res.status(400).json({
+          message: "totalSeats must be a valid positive number"
+        })
+      }
+      updateData.totalSeats = totalSeatsNum
+    }
+
+    if (roomType !== undefined) {
+      if (!['SINGLE', 'DOUBLE', 'TRIPLE'].includes(roomType)) {
+        return res.status(400).json({
+          message: "roomType must be one of: SINGLE, DOUBLE, TRIPLE"
+        })
+      }
+      updateData.roomType = roomType
+    }
+
+    // Handle vacantSeats logic
+    if (vacantSeats !== undefined) {
+      const vacantSeatsNum = Number.parseInt(vacantSeats)
+      if (isNaN(vacantSeatsNum) || vacantSeatsNum < 0) {
+        return res.status(400).json({
+          message: "vacantSeats must be a valid non-negative number"
+        })
+      }
+      updateData.vacantSeats = vacantSeatsNum
+    }
+
+    // Validate totalSeats and roomType consistency if both are being updated
+    if (updateData.totalSeats && updateData.roomType) {
+      const expectedSeats = {
+        'SINGLE': 1,
+        'DOUBLE': 2,
+        'TRIPLE': 3
+      }
+
+      if (updateData.totalSeats !== expectedSeats[updateData.roomType]) {
+        return res.status(400).json({
+          message: `Total seats must be ${expectedSeats[updateData.roomType]} for ${updateData.roomType} room type`
+        })
+      }
+    }
+
+    // Auto-adjust vacantSeats when totalSeats is changed
+    if (updateData.totalSeats !== undefined) {
+      const currentOccupiedSeats = existingRoom.totalSeats - existingRoom.vacantSeats
+      const newTotalSeats = updateData.totalSeats
+      
+      // Calculate new vacant seats
+      const newVacantSeats = Math.max(0, newTotalSeats - currentOccupiedSeats)
+      
+      // Check if the new total seats can accommodate current students
+      if (currentOccupiedSeats > newTotalSeats) {
+        return res.status(400).json({
+          message: `Cannot reduce total seats to ${newTotalSeats}. There are currently ${currentOccupiedSeats} students allocated to this room.`,
+          currentOccupiedSeats,
+          requestedTotalSeats: newTotalSeats
+        })
+      }
+      
+      updateData.vacantSeats = newVacantSeats
+      
+      // If user also provided vacantSeats, validate it
+      if (vacantSeats !== undefined) {
+        const userVacantSeats = Number.parseInt(vacantSeats)
+        if (userVacantSeats !== newVacantSeats) {
+          return res.status(400).json({
+            message: `Vacant seats will be automatically adjusted to ${newVacantSeats} based on current occupancy and new total seats. Cannot manually set to ${userVacantSeats}.`,
+            calculatedVacantSeats: newVacantSeats,
+            requestedVacantSeats: userVacantSeats,
+            currentOccupiedSeats
+          })
+        }
+      }
+    }
+
+    // Check if room number already exists in the same hostel (if roomNumber is being updated)
+    if (updateData.roomNumber) {
+      const duplicateRoom = await prisma.room.findFirst({
+        where: {
+          hostelId: existingRoom.hostelId,
+          roomNumber: updateData.roomNumber,
+          id: { not: roomIdNum }
+        },
+      })
+
+      if (duplicateRoom) {
+        return res.status(400).json({ message: "Room number already exists in this hostel" })
+      }
+    }
+
+    // Update room
+    const updatedRoom = await prisma.room.update({
+      where: { id: roomIdNum },
+      data: updateData,
+      include: {
+        hostel: {
+          select: {
+            id: true,
+            name: true,
+            type: true
+          }
+        }
+      }
+    })
+
+    res.status(200).json({
+      message: "Room updated successfully",
+      room: updatedRoom,
+      changes: {
+        totalSeatsChanged: updateData.totalSeats !== undefined,
+        vacantSeatsAutoAdjusted: updateData.totalSeats !== undefined && vacantSeats === undefined
+      }
+    })
+  } catch (error) {
+    console.error("Error updating room:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+
+// Delete room
+export const deleteRoom = async (req, res) => {
+  try {
+    const { roomId } = req.params
+
+    // Convert roomId to number
+    const roomIdNum = Number.parseInt(roomId)
+    if (isNaN(roomIdNum)) {
+      return res.status(400).json({
+        message: "roomId must be a valid number"
+      })
+    }
+
+    // Check if room exists and get its details
+    const room = await prisma.room.findUnique({
+      where: { id: roomIdNum },
+      include: {
+        hostel: true,
+        allocations: {
+          where: {
+            isActive: true
+          },
+          include: {
+            student: true
+          }
+        }
+      }
+    })
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" })
+    }
+
+    // Check if there are active student allocations to this room
+    if (room.allocations && room.allocations.length > 0) {
+      return res.status(400).json({
+        message: "Cannot delete room. There are students currently allocated to this room. Please deallocate all students first.",
+        allocatedStudents: room.allocations.length,
+        students: room.allocations.map(allocation => ({
+          id: allocation.student.id,
+          fullName: allocation.student.fullName,
+          registrationNo: allocation.student.registrationNo
+        }))
+      })
+    }
+
+    // Delete room and update hostel room counts in a transaction
+    await prisma.$transaction(async (tx) => {
+      // Delete the room
+      await tx.room.delete({
+        where: { id: roomIdNum }
+      })
+
+      // Update hostel room counts
+      await tx.hostel.update({
+        where: { id: room.hostelId },
+        data: {
+          totalRooms: {
+            decrement: 1
+          },
+          vacantRooms: {
+            decrement: 1
+          }
+        }
+      })
+    })
+
+    res.status(200).json({
+      message: "Room deleted successfully",
+      deletedRoom: {
+        id: room.id,
+        roomNumber: room.roomNumber,
+        hostelName: room.hostel.name
+      }
+    })
+  } catch (error) {
+    console.error("Error deleting room:", error)
     res.status(500).json({ message: "Internal server error" })
   }
 }
@@ -1191,6 +1443,240 @@ export const allocateRoom = async (req, res) => {
     })
   } catch (error) {
     console.error("Error allocating room:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+
+// Create warden
+export const createWarden = async (req, res) => {
+  try {
+    const { 
+      email, 
+      fullName, 
+      fatherName, 
+      mobileNo, 
+      aadharNo, 
+      address, 
+      zipCode 
+    } = req.body
+
+    // Validate required fields
+    if (!email || !fullName || !fatherName || !mobileNo || !aadharNo || !address || !zipCode) {
+      return res.status(400).json({
+        message: "All fields are required: email, fullName, fatherName, mobileNo, aadharNo, address, zipCode"
+      })
+    }
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    })
+
+    if (existingUser) {
+      return res.status(400).json({ message: "User with this email already exists" })
+    }
+
+    // Generate random password
+    const randomPassword = generateRandomPassword()
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(randomPassword, 10)
+
+    // Create user and warden in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create user
+      const user = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          role: "WARDEN",
+        },
+      })
+
+      // Create warden profile
+      const warden = await tx.warden.create({
+        data: {
+          userId: user.id,
+          fullName,
+          fatherName,
+          mobileNo,
+          aadharNo,
+          address,
+          zipCode,
+          isApproved: true, // Auto-approve when created by admin
+        },
+      })
+
+      return { user, warden }
+    })
+
+    // Send welcome email with credentials
+    try {
+      // await sendEMail({
+      //   to: email,
+      //   subject: "Your Warden Account Credentials",
+      //   html: `
+      //     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      //       <h2 style="color: #333;">Welcome to Hostel Management System</h2>
+      //       <p>Hello ${fullName},</p>
+      //       <p>Your warden account has been created successfully. You can now login to the system.</p>
+      //       <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+      //         <h3 style="margin-top: 0; color: #555;">Your Login Credentials:</h3>
+      //         <p><strong>Email:</strong> ${email}</p>
+      //         <p><strong>Password:</strong> ${randomPassword}</p>
+      //       </div>
+      //       <p style="color: #666; font-size: 14px;">
+      //         <strong>Important:</strong> Please change your password after your first login for security purposes.
+      //       </p>
+      //       <p>Best regards,<br>Hostel Management Team</p>
+      //     </div>
+      //   `,
+      // });
+    } catch (emailError) {
+      console.error("Error sending welcome email:", emailError)
+      // Continue with the response even if email fails
+    }
+
+    res.status(201).json({
+      message: "Warden created successfully",
+      warden: {
+        id: result.warden.id,
+        fullName: result.warden.fullName,
+        email: result.user.email,
+        isApproved: result.warden.isApproved,
+        password:randomPassword
+      }
+    })
+  } catch (error) {
+    console.error("Error creating warden:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+
+// Update warden
+export const updateWarden = async (req, res) => {
+  try {
+    const { wardenId } = req.params
+    const { 
+      fullName, 
+      fatherName, 
+      mobileNo, 
+      aadharNo, 
+      address, 
+      zipCode,
+      isApproved 
+    } = req.body
+
+    // Validate required fields
+    if (!fullName || !fatherName || !mobileNo || !aadharNo || !address || !zipCode) {
+      return res.status(400).json({
+        message: "All fields are required: fullName, fatherName, mobileNo, aadharNo, address, zipCode"
+      })
+    }
+
+    // Check if warden exists
+    const existingWarden = await prisma.warden.findUnique({
+      where: { id: Number.parseInt(wardenId) },
+      include: {
+        user: true
+      }
+    })
+
+    if (!existingWarden) {
+      return res.status(404).json({ message: "Warden not found" })
+    }
+
+    // Update warden profile
+    const updatedWarden = await prisma.warden.update({
+      where: { id: Number.parseInt(wardenId) },
+      data: {
+        fullName,
+        fatherName,
+        mobileNo,
+        aadharNo,
+        address,
+        zipCode,
+        isApproved: isApproved !== undefined ? isApproved : existingWarden.isApproved,
+      },
+      include: {
+        user: {
+          select: {
+            email: true
+          }
+        }
+      }
+    })
+
+    res.status(200).json({
+      message: "Warden updated successfully",
+      warden: {
+        id: updatedWarden.id,
+        fullName: updatedWarden.fullName,
+        fatherName: updatedWarden.fatherName,
+        mobileNo: updatedWarden.mobileNo,
+        aadharNo: updatedWarden.aadharNo,
+        address: updatedWarden.address,
+        zipCode: updatedWarden.zipCode,
+        isApproved: updatedWarden.isApproved,
+        email: updatedWarden.user.email
+      }
+    })
+  } catch (error) {
+    console.error("Error updating warden:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+
+// Get single warden by ID
+export const getWarden = async (req, res) => {
+  try {
+    const { wardenId } = req.params
+
+    const warden = await prisma.warden.findUnique({
+      where: { id: Number.parseInt(wardenId) },
+      include: {
+        user: {
+          select: {
+            email: true
+          }
+        },
+        hostels: {
+          include: {
+            hostel: {
+              select: {
+                id: true,
+                name: true,
+                type: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!warden) {
+      return res.status(404).json({ message: "Warden not found" })
+    }
+
+    res.status(200).json({
+      message: "Warden details fetched successfully",
+      warden: {
+        id: warden.id,
+        fullName: warden.fullName,
+        fatherName: warden.fatherName,
+        mobileNo: warden.mobileNo,
+        aadharNo: warden.aadharNo,
+        address: warden.address,
+        zipCode: warden.zipCode,
+        isApproved: warden.isApproved,
+        email: warden.user.email,
+        hostels: warden.hostels.map(wh => wh.hostel),
+        createdAt: warden.createdAt,
+        updatedAt: warden.updatedAt
+      }
+    })
+  } catch (error) {
+    console.error("Error fetching warden:", error)
     res.status(500).json({ message: "Internal server error" })
   }
 }

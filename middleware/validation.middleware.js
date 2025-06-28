@@ -41,6 +41,18 @@ export const validateRegisterWarden = [
   validate,
 ]
 
+// Validation rules for updating warden (excludes email)
+export const validateUpdateWarden = [
+  body("fullName").notEmpty().withMessage("Full name is required"),
+  body("fatherName").notEmpty().withMessage("Father name is required"),
+  body("mobileNo").notEmpty().withMessage("Mobile number is required"),
+  body("aadharNo").notEmpty().withMessage("Aadhar number is required"),
+  body("address").notEmpty().withMessage("Address is required"),
+  body("zipCode").notEmpty().withMessage("Zip code is required"),
+  body("isApproved").optional().isBoolean().withMessage("isApproved must be a boolean"),
+  validate,
+]
+
 // Validation rules for login
 export const validateLogin = [
   body("email").notEmpty().withMessage("Email is required"),

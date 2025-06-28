@@ -2,7 +2,6 @@ import express from "express"
 import cors from "cors"
 import helmet from "helmet"
 import morgan from "morgan"
-import { PrismaClient } from "@prisma/client"
 import authRoutes from "./routes/auth.routes.js"
 import studentRoutes from "./routes/student.routes.js"
 import wardenRoutes from "./routes/warden.routes.js"
@@ -10,6 +9,9 @@ import adminRoutes from "./routes/admin.routes.js"
 import paymentRoutes from "./routes/payment.routes.js"
 import { errorHandler } from "./middleware/error.middleware.js"
 import { authenticateToken } from "./middleware/auth.middleware.js"
+import bcrypt from "bcrypt"
+// import { sendEMail } from "../utils/email.service.js"
+import prisma from "./config/db.js"
 import 'dotenv/config'
 // Create Express app
 const app = express()
@@ -27,6 +29,76 @@ app.get("/health", (req, res) => {
 })
 
 // Routes
+
+app.post("/api/create-admin", async (req, res) => {
+  try {
+    const { email, password, fullName } = req.body
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    })
+
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" })
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10)
+
+    // Create user and admin in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create user
+      const user = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          role: "ADMIN",
+        },
+      })
+
+      // Create admin profile
+      const admin = await tx.admin.create({
+        data: {
+          userId: user.id,
+          fullName,
+        },
+      })
+
+      return { user, admin }
+    })
+
+    // Send welcome email
+    try {
+      await sendEMail({
+        to: email,
+        subject: "Your Account Credentials",
+        html: `
+      <p>Hello ${fullName},</p>
+      <p>Your account has been created. </br> Now you can login to system </p>
+      <p><strong>Login Id:</strong> ${email}</p>
+      <p><strong>Password:</strong> ${password}</p>
+    `,
+      });
+    } catch (emailError) {
+      console.error("Error sending welcome email:", emailError)
+      // Continue with the response even if email fails
+    }
+
+    res.status(201).json({
+      message: "Admin created successfully",
+      admin: {
+        id: result.admin.id,
+        fullName: result.admin.fullName,
+        email: result.user.email,
+        password: password
+      }
+    })
+  } catch (error) {
+    console.error("Error creating admin:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+})
 app.use("/api/auth", authRoutes)
 app.use("/api/students", authenticateToken, studentRoutes)
 app.use("/api/wardens", authenticateToken, wardenRoutes)

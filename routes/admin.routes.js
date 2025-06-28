@@ -3,10 +3,15 @@ import {
   getAllHostels,
   createHostel,
   createRoom,
+  updateRoom,
+  deleteRoom,
   getAllWardens,
   getPendingWardens,
   approveWarden,
   deleteWarden,
+  createWarden,
+  updateWarden,
+  getWarden,
   getAllStudents,
   createAdmin,
   createPayment,
@@ -22,6 +27,7 @@ import {
   getHostel,
 } from "../controllers/admin.controller.js"
 import { checkRole } from "../middleware/auth.middleware.js"
+import { validateRegisterWarden, validateUpdateWarden } from "../middleware/validation.middleware.js"
 
 const router = express.Router()
 
@@ -37,7 +43,12 @@ router.delete("/hostels/:hostelId", deleteHostel)
 router.delete("/hostels/:hostelId/wardens/:wardenId", removeWardenFromHostel)
 router.delete("/students/:studentId/hostel", removeStudentFromHostel)
 router.post("/rooms", createRoom)
+router.put("/rooms/:roomId", updateRoom)
+router.delete("/rooms/:roomId", deleteRoom)
 router.get("/wardens", getAllWardens)
+router.get("/wardens/:wardenId", getWarden)
+router.post("/wardens", validateRegisterWarden, createWarden)
+router.put("/wardens/:wardenId", validateUpdateWarden, updateWarden)
 router.put("/wardens/:wardenId/approve", approveWarden)
 router.delete("/wardens/:wardenId", deleteWarden)
 router.get("/students", getAllStudents)

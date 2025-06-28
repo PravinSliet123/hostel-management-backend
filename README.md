@@ -90,6 +90,10 @@ hostel-management-system/
 - `GET /api/admin/hostels` - Get all hostels
 - `POST /api/admin/hostels` - Create hostel
 - `POST /api/admin/rooms` - Create room
+- `GET /api/admin/wardens` - Get all wardens
+- `GET /api/admin/wardens/:wardenId` - Get single warden details
+- `POST /api/admin/wardens` - Create warden (with auto-generated password)
+- `PUT /api/admin/wardens/:wardenId` - Update warden details
 - `GET /api/admin/wardens/pending` - Get pending warden registrations
 - `PUT /api/admin/wardens/:wardenId/approve` - Approve warden
 - `DELETE /api/admin/wardens/:wardenId/reject` - Reject warden
@@ -100,3 +104,133 @@ hostel-management-system/
 ### Payment Routes
 - `GET /api/payments` - Get all payments for a user
 - `POST /api/payments/:paymentId` - Make a payment
+
+## API Documentation
+
+### Create Warden (Admin Only)
+
+**Endpoint:** `POST /api/admin/wardens`
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "email": "warden@example.com",
+  "fullName": "John Doe",
+  "fatherName": "Robert Doe",
+  "mobileNo": "9876543210",
+  "aadharNo": "123456789012",
+  "address": "123 Main Street, City, State",
+  "zipCode": "123456"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Warden created successfully",
+  "warden": {
+    "id": 1,
+    "fullName": "John Doe",
+    "email": "warden@example.com",
+    "isApproved": true
+  }
+}
+```
+
+**Features:**
+- Automatically generates a secure random password
+- Sends welcome email with login credentials
+- Auto-approves the warden account
+- Validates all required fields
+- Checks for duplicate email addresses
+- Uses database transactions for data integrity
+
+### Get Warden Details (Admin Only)
+
+**Endpoint:** `GET /api/admin/wardens/:wardenId`
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "message": "Warden details fetched successfully",
+  "warden": {
+    "id": 1,
+    "fullName": "John Doe",
+    "fatherName": "Robert Doe",
+    "mobileNo": "9876543210",
+    "aadharNo": "123456789012",
+    "address": "123 Main Street, City, State",
+    "zipCode": "123456",
+    "isApproved": true,
+    "email": "warden@example.com",
+    "hostels": [
+      {
+        "id": 1,
+        "name": "Boys Hostel A",
+        "type": "BOYS"
+      }
+    ],
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+### Update Warden (Admin Only)
+
+**Endpoint:** `PUT /api/admin/wardens/:wardenId`
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "fullName": "John Doe Updated",
+  "fatherName": "Robert Doe",
+  "mobileNo": "9876543210",
+  "aadharNo": "123456789012",
+  "address": "456 New Street, City, State",
+  "zipCode": "654321",
+  "isApproved": true
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Warden updated successfully",
+  "warden": {
+    "id": 1,
+    "fullName": "John Doe Updated",
+    "fatherName": "Robert Doe",
+    "mobileNo": "9876543210",
+    "aadharNo": "123456789012",
+    "address": "456 New Street, City, State",
+    "zipCode": "654321",
+    "isApproved": true,
+    "email": "warden@example.com"
+  }
+}
+```
+
+**Features:**
+- Updates all warden profile fields
+- Optionally updates approval status
+- Validates all required fields
+- Returns updated warden information
+- Includes email in response for reference
