@@ -10,9 +10,10 @@ import paymentRoutes from "./routes/payment.routes.js"
 import { errorHandler } from "./middleware/error.middleware.js"
 import { authenticateToken } from "./middleware/auth.middleware.js"
 import bcrypt from "bcrypt"
-// import { sendEMail } from "../utils/email.service.js"
+
 import prisma from "./config/db.js"
 import 'dotenv/config'
+import { sendEMail } from "./utils/email.service.js"
 // Create Express app
 const app = express()
 const PORT = process.env.PORT || 8080

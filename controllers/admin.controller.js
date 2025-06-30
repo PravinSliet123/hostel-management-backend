@@ -1571,26 +1571,26 @@ export const createWarden = async (req, res) => {
 
     // Send welcome email with credentials
     try {
-      // await sendEMail({
-      //   to: email,
-      //   subject: "Your Warden Account Credentials",
-      //   html: `
-      //     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      //       <h2 style="color: #333;">Welcome to Hostel Management System</h2>
-      //       <p>Hello ${fullName},</p>
-      //       <p>Your warden account has been created successfully. You can now login to the system.</p>
-      //       <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-      //         <h3 style="margin-top: 0; color: #555;">Your Login Credentials:</h3>
-      //         <p><strong>Email:</strong> ${email}</p>
-      //         <p><strong>Password:</strong> ${randomPassword}</p>
-      //       </div>
-      //       <p style="color: #666; font-size: 14px;">
-      //         <strong>Important:</strong> Please change your password after your first login for security purposes.
-      //       </p>
-      //       <p>Best regards,<br>Hostel Management Team</p>
-      //     </div>
-      //   `,
-      // });
+      await sendEMail({
+        to: email,
+        subject: "Your Warden Account Credentials",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">Welcome to Hostel Management System</h2>
+            <p>Hello ${fullName},</p>
+            <p>Your warden account has been created successfully. You can now login to the system.</p>
+            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #555;">Your Login Credentials:</h3>
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Password:</strong> ${randomPassword}</p>
+            </div>
+            <p style="color: #666; font-size: 14px;">
+              <strong>Important:</strong> Please change your password after your first login for security purposes.
+            </p>
+            <p>Best regards,<br>Hostel Management Team</p>
+          </div>
+        `,
+      });
     } catch (emailError) {
       console.error("Error sending welcome email:", emailError)
       // Continue with the response even if email fails

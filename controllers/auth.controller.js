@@ -230,16 +230,16 @@ export const registerStudent = async (req, res) => {
       // Generate UID
       const uid = generateUID(result.student.id)
 
-    //   await sendEMail({
-    //     to: email,
-    //     subject: "Your Account Credentials",
-    //     html: `
-    //   <p>Hello ${fullName},</p>
-    //   <p>Your account has been created. </br> Now you can login to system </p>
-    //   <p><strong>Login Id:</strong> ${email}</p>
-    //   <p><strong>Password:</strong> ${generatedPassword}</p>
-    // `,
-    //   });
+      await sendEMail({
+        to: email,
+        subject: "Your Account Credentials",
+        html: `
+      <p>Hello ${fullName},</p>
+      <p>Your account has been created. </br> Now you can login to system </p>
+      <p><strong>Login Id:</strong> ${email}</p>
+      <p><strong>Password:</strong> ${generatedPassword}</p>
+    `,
+      });
 
       res.status(201).json({
         message: "Student registered successfully",
