@@ -32,7 +32,6 @@ export const authenticateToken = async (req, res, next) => {
         email: user.email,
         role: user.role,
       }
-
       next()
     })
   } catch (error) {

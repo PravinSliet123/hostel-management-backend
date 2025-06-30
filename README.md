@@ -98,12 +98,49 @@ hostel-management-system/
 - `PUT /api/admin/wardens/:wardenId/approve` - Approve warden
 - `DELETE /api/admin/wardens/:wardenId/reject` - Reject warden
 - `GET /api/admin/students` - Get all students
-- `POST /api/admin/admin` - Create admin
+- `POST /api/admin/create-admin` - Create admin
+- `GET /api/admin/admins` - Get all admins
+- `GET /api/admin/admins/:adminId` - Get single admin details
+- `PUT /api/admin/admins/:adminId` - Update admin details
+- `DELETE /api/admin/admins/:adminId` - Delete admin
 - `POST /api/admin/payments` - Create payment for student
 
 ### Payment Routes
 - `GET /api/payments` - Get all payments for a user
 - `POST /api/payments/:paymentId` - Make a payment
+
+### Warden-Hostel Assignment APIs
+
+The system supports many-to-many relationships between wardens and hostels, allowing:
+- A hostel to have multiple wardens
+- A warden to be responsible for multiple hostels
+
+#### Assignment Management
+- `POST /api/admin/warden-hostel/assign` - Assign a warden to a hostel
+  ```json
+  {
+    "wardenId": 1,
+    "hostelId": 2
+  }
+  ```
+
+- `POST /api/admin/warden-hostel/bulk-assign` - Bulk assign multiple wardens to hostels
+  ```json
+  {
+    "assignments": [
+      { "wardenId": 1, "hostelId": 2 },
+      { "wardenId": 2, "hostelId": 1 },
+      { "wardenId": 1, "hostelId": 3 }
+    ]
+  }
+  ```
+
+- `DELETE /api/admin/hostels/:hostelId/wardens/:wardenId` - Remove warden from hostel
+
+#### Assignment Queries
+- `GET /api/admin/warden-hostel/assignments` - Get all warden-hostel assignments
+- `GET /api/admin/warden-hostel/warden/:wardenId` - Get all hostels assigned to a specific warden
+- `GET /api/admin/warden-hostel/hostel/:hostelId` - Get all wardens assigned to a specific hostel
 
 ## API Documentation
 
@@ -234,3 +271,242 @@ Content-Type: application/json
 - Validates all required fields
 - Returns updated warden information
 - Includes email in response for reference
+
+### Admin Management APIs
+
+#### Get All Admins (Admin Only)
+
+**Endpoint:** `GET /api/admin/admins`
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "message": "Admins fetched successfully",
+  "data": [
+    {
+      "id": 1,
+      "fullName": "Super Admin",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "user": {
+        "id": 1,
+        "email": "admin@example.com",
+        "role": "ADMIN",
+        "createdAt": "2024-01-01T00:00:00.000Z",
+        "updatedAt": "2024-01-01T00:00:00.000Z"
+      }
+    }
+  ]
+}
+```
+
+**Features:**
+- Returns all admin accounts in the system
+- Includes user information (email, role, timestamps)
+- Ordered by creation date (newest first)
+- Secure access - only admins can view
+
+#### Get Single Admin (Admin Only)
+
+**Endpoint:** `GET /api/admin/admins/:adminId`
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "message": "Admin fetched successfully",
+  "data": {
+    "id": 1,
+    "fullName": "Super Admin",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z",
+    "user": {
+      "id": 1,
+      "email": "admin@example.com",
+      "role": "ADMIN",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  }
+}
+```
+
+**Error Response (404):**
+```json
+{
+  "message": "Admin not found"
+}
+```
+
+**Features:**
+- Returns detailed information for a specific admin
+- Includes complete user profile data
+- Validates admin ID existence
+- Secure access control
+
+#### Create Admin (Admin Only)
+
+**Endpoint:** `POST /api/admin/create-admin`
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "email": "newadmin@example.com",
+  "password": "SecurePass123",
+  "fullName": "New Admin User"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Admin created successfully",
+  "admin": {
+    "id": 2,
+    "fullName": "New Admin User",
+    "email": "newadmin@example.com"
+  }
+}
+```
+
+**Error Response (400):**
+```json
+{
+  "message": "User already exists"
+}
+```
+
+**Features:**
+- Creates new admin account with secure password
+- Sends welcome email with login credentials
+- Validates email format and password strength
+- Checks for duplicate email addresses
+- Uses database transactions for data integrity
+- Password requirements: minimum 6 characters, at least one lowercase, uppercase, and number
+
+#### Update Admin (Admin Only)
+
+**Endpoint:** `PUT /api/admin/admins/:adminId`
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "email": "updatedadmin@example.com",
+  "fullName": "Updated Admin Name"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Admin updated successfully",
+  "data": {
+    "id": 1,
+    "fullName": "Updated Admin Name",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-02T00:00:00.000Z",
+    "user": {
+      "id": 1,
+      "email": "updatedadmin@example.com",
+      "role": "ADMIN",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-02T00:00:00.000Z"
+    }
+  }
+}
+```
+
+**Error Responses:**
+```json
+{
+  "message": "fullName and email are required fields",
+  "received": { "fullName": "", "email": "" }
+}
+```
+
+```json
+{
+  "message": "Email already exists"
+}
+```
+
+```json
+{
+  "message": "Admin not found"
+}
+```
+
+**Features:**
+- Updates admin profile information
+- Validates email format and uniqueness
+- Uses database transactions for consistency
+- Returns updated admin data
+- Prevents email conflicts with other users
+
+#### Delete Admin (Admin Only)
+
+**Endpoint:** `DELETE /api/admin/admins/:adminId`
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "message": "Admin deleted successfully"
+}
+```
+
+**Error Responses:**
+```json
+{
+  "message": "Admin not found"
+}
+```
+
+```json
+{
+  "message": "Cannot delete your own account",
+  "details": "Please contact another admin to delete your account"
+}
+```
+
+**Features:**
+- Permanently deletes admin account and associated user
+- Prevents self-deletion for security
+- Uses database transactions for data integrity
+- Cascading deletion of related data
+- Secure access control
+
+## Security Features
+
+- JWT-based authentication
+- Role-based access control (ADMIN, WARDEN, STUDENT)
+- Password hashing with bcrypt
+- Input validation and sanitization
+- Database transaction support
+- Email verification for new accounts
+- Secure password requirements

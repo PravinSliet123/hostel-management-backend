@@ -455,3 +455,63 @@ export const login = async (req, res) => {
     res.status(500).json({ message: "Internal server error" })
   }
 }
+
+// Change password
+export const changePassword = async (req, res) => {
+  console.log("body",req.body,req.user)
+  try {
+    const { currentPassword, newPassword } = req.body
+    console.log("data",currentPassword,newPassword)
+    const userId = req.user.id
+
+    // Find user
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    })
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" })
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password)
+    if (!isCurrentPasswordValid) {
+      return res.status(401).json({ message: "Current password is incorrect" })
+    }
+
+    // Check if new password is same as current password
+    const isSamePassword = await bcrypt.compare(newPassword, user.password)
+    if (isSamePassword) {
+      return res.status(400).json({ message: "New password must be different from current password" })
+    }
+
+    // Hash the new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10)
+
+    // Update password in database
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedNewPassword },
+    })
+
+    // Generate new JWT token
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || "your-secret-key",
+      { expiresIn: "1d" },
+    )
+
+    res.status(200).json({
+      message: "Password changed successfully",
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
+    })
+  } catch (error) {
+    console.error("Error changing password:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}

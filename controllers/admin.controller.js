@@ -5,7 +5,6 @@ import { generateRandomPassword } from "../utils/password.generator.js"
 
 // Get all hostels
 export const getAllHostels = async (req, res) => {
-  console.log("req=>", req)
   try {
     const hostels = await prisma.hostel.findMany({
       include: {
@@ -149,6 +148,26 @@ export const createRoom = async (req, res) => {
       return res.status(404).json({ message: "Hostel not found" })
     }
 
+    // If user is a warden, check if they are assigned to this hostel
+    if (req.user.role === "WARDEN") {
+      const warden = await prisma.warden.findFirst({
+        where: { 
+          userId: req.user.id,
+          hostels: {
+            some: {
+              hostelId: hostelIdNum
+            }
+          }
+        },
+      })
+
+      if (!warden) {
+        return res.status(403).json({ 
+          message: "Access denied. You can only create rooms in hostels you are assigned to." 
+        })
+      }
+    }
+
     // Check if room already exists
     const existingRoom = await prisma.room.findFirst({
       where: {
@@ -235,6 +254,26 @@ export const updateRoom = async (req, res) => {
 
     if (!existingRoom) {
       return res.status(404).json({ message: "Room not found" })
+    }
+
+    // If user is a warden, check if they are assigned to this room's hostel
+    if (req.user.role === "WARDEN") {
+      const warden = await prisma.warden.findFirst({
+        where: { 
+          userId: req.user.id,
+          hostels: {
+            some: {
+              hostelId: existingRoom.hostelId
+            }
+          }
+        },
+      })
+
+      if (!warden) {
+        return res.status(403).json({ 
+          message: "Access denied. You can only update rooms in hostels you are assigned to." 
+        })
+      }
     }
 
     // Prepare update data
@@ -397,6 +436,26 @@ export const deleteRoom = async (req, res) => {
 
     if (!room) {
       return res.status(404).json({ message: "Room not found" })
+    }
+
+    // If user is a warden, check if they are assigned to this room's hostel
+    if (req.user.role === "WARDEN") {
+      const warden = await prisma.warden.findFirst({
+        where: { 
+          userId: req.user.id,
+          hostels: {
+            some: {
+              hostelId: room.hostelId
+            }
+          }
+        },
+      })
+
+      if (!warden) {
+        return res.status(403).json({ 
+          message: "Access denied. You can only delete rooms in hostels you are assigned to." 
+        })
+      }
     }
 
     // Check if there are active student allocations to this room
@@ -1677,6 +1736,501 @@ export const getWarden = async (req, res) => {
     })
   } catch (error) {
     console.error("Error fetching warden:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+
+// Get all admins
+export const getAllAdmins = async (req, res) => {
+  try {
+    const admins = await prisma.admin.findMany({
+      where: {
+        userId: {
+          not: req.user.id // Filter out current logged-in admin
+        }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    res.status(200).json({
+      message: "Admins fetched successfully",
+      data: admins
+    })
+  } catch (error) {
+    console.error("Error fetching admins:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+
+// Get specific admin by ID
+export const getAdmin = async (req, res) => {
+  try {
+    const { adminId } = req.params
+
+    const admin = await prisma.admin.findUnique({
+      where: { id: Number.parseInt(adminId) },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true
+          }
+        }
+      }
+    })
+
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" })
+    }
+
+    res.status(200).json({
+      message: "Admin fetched successfully",
+      data: admin
+    })
+  } catch (error) {
+    console.error("Error fetching admin:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+
+// Update admin details
+export const updateAdmin = async (req, res) => {
+  try {
+    const { adminId } = req.params
+    const { fullName, email } = req.body
+
+    // Validate required fields
+    if (!fullName || !email) {
+      return res.status(400).json({
+        message: "fullName and email are required fields",
+        received: { fullName, email }
+      })
+    }
+
+    // Check if admin exists
+    const existingAdmin = await prisma.admin.findUnique({
+      where: { id: Number.parseInt(adminId) },
+      include: {
+        user: true
+      }
+    })
+
+    if (!existingAdmin) {
+      return res.status(404).json({ message: "Admin not found" })
+    }
+
+    // Check if email is being changed and if it conflicts with another user
+    if (email !== existingAdmin.user.email) {
+      const emailExists = await prisma.user.findUnique({
+        where: { email }
+      })
+
+      if (emailExists) {
+        return res.status(400).json({ message: "Email already exists" })
+      }
+    }
+
+    // Update admin and user in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Update user email
+      const updatedUser = await tx.user.update({
+        where: { id: existingAdmin.userId },
+        data: { email }
+      })
+
+      // Update admin details
+      const updatedAdmin = await tx.admin.update({
+        where: { id: Number.parseInt(adminId) },
+        data: { fullName },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              role: true,
+              createdAt: true,
+              updatedAt: true
+            }
+          }
+        }
+      })
+
+      return updatedAdmin
+    })
+
+    res.status(200).json({
+      message: "Admin updated successfully",
+      data: result
+    })
+  } catch (error) {
+    console.error("Error updating admin:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+
+// Delete admin
+export const deleteAdmin = async (req, res) => {
+  try {
+    const { adminId } = req.params
+
+    // Check if admin exists
+    const admin = await prisma.admin.findUnique({
+      where: { id: Number.parseInt(adminId) },
+      include: {
+        user: true
+      }
+    })
+
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" })
+    }
+
+    // Prevent deletion of the current admin (optional security measure)
+    if (req.user && req.user.id === admin.userId) {
+      return res.status(400).json({ 
+        message: "Cannot delete your own account",
+        details: "Please contact another admin to delete your account"
+      })
+    }
+
+    // Delete admin and associated user in a transaction
+    await prisma.$transaction(async (tx) => {
+      // Delete admin profile
+      await tx.admin.delete({
+        where: { id: Number.parseInt(adminId) }
+      })
+
+      // Delete user account
+      await tx.user.delete({
+        where: { id: admin.userId }
+      })
+    })
+
+    res.status(200).json({
+      message: "Admin deleted successfully"
+    })
+  } catch (error) {
+    console.error("Error deleting admin:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+
+// Assign warden to hostel
+export const assignWardenToHostel = async (req, res) => {
+  try {
+    const { wardenId, hostelId } = req.body
+
+    // Check if warden exists and is approved
+    const warden = await prisma.warden.findUnique({
+      where: { id: Number.parseInt(wardenId) },
+      include: {
+        hostels: {
+          include: {
+            hostel: true
+          }
+        }
+      }
+    })
+
+    if (!warden) {
+      return res.status(404).json({ message: "Warden not found" })
+    }
+
+    if (!warden.isApproved) {
+      return res.status(400).json({ message: "Warden must be approved before assignment" })
+    }
+
+    // Check if hostel exists
+    const hostel = await prisma.hostel.findUnique({
+      where: { id: Number.parseInt(hostelId) }
+    })
+
+    if (!hostel) {
+      return res.status(404).json({ message: "Hostel not found" })
+    }
+
+    // Check if warden is already assigned to this hostel
+    const existingAssignment = warden.hostels.find(
+      wh => wh.hostelId === Number.parseInt(hostelId)
+    )
+
+    if (existingAssignment) {
+      return res.status(400).json({
+        message: "Warden is already assigned to this hostel"
+      })
+    }
+
+    // Create hostel assignment
+    const wardenHostel = await prisma.wardenHostel.create({
+      data: {
+        wardenId: Number.parseInt(wardenId),
+        hostelId: Number.parseInt(hostelId),
+      },
+      include: {
+        hostel: true,
+        warden: {
+          include: {
+            user: {
+              select: {
+                email: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    res.status(201).json({
+      message: "Warden assigned to hostel successfully",
+      assignment: wardenHostel
+    })
+  } catch (error) {
+    console.error("Error assigning warden to hostel:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+
+// Get all warden-hostel assignments
+export const getWardenHostelAssignments = async (req, res) => {
+  try {
+    const assignments = await prisma.wardenHostel.findMany({
+      include: {
+        warden: {
+          include: {
+            user: {
+              select: {
+                email: true
+              }
+            }
+          }
+        },
+        hostel: true
+      },
+      orderBy: [
+        { warden: { fullName: 'asc' } },
+        { hostel: { name: 'asc' } }
+      ]
+    })
+
+    res.status(200).json(assignments)
+  } catch (error) {
+    console.error("Error fetching warden-hostel assignments:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+
+// Get assignments by warden ID
+export const getWardenAssignments = async (req, res) => {
+  try {
+    const { wardenId } = req.params
+
+    const warden = await prisma.warden.findUnique({
+      where: { id: Number.parseInt(wardenId) },
+      include: {
+        hostels: {
+          include: {
+            hostel: true
+          }
+        },
+        user: {
+          select: {
+            email: true
+          }
+        }
+      }
+    })
+
+    if (!warden) {
+      return res.status(404).json({ message: "Warden not found" })
+    }
+
+    res.status(200).json({
+      warden: {
+        id: warden.id,
+        fullName: warden.fullName,
+        email: warden.user.email,
+        isApproved: warden.isApproved
+      },
+      assignedHostels: warden.hostels.map(wh => wh.hostel)
+    })
+  } catch (error) {
+    console.error("Error fetching warden assignments:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+
+// Get assignments by hostel ID
+export const getHostelAssignments = async (req, res) => {
+  try {
+    const { hostelId } = req.params
+
+    const hostel = await prisma.hostel.findUnique({
+      where: { id: Number.parseInt(hostelId) },
+      include: {
+        wardens: {
+          include: {
+            warden: {
+              include: {
+                user: {
+                  select: {
+                    email: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!hostel) {
+      return res.status(404).json({ message: "Hostel not found" })
+    }
+
+    res.status(200).json({
+      hostel: {
+        id: hostel.id,
+        name: hostel.name,
+        type: hostel.type
+      },
+      assignedWardens: hostel.wardens.map(wh => ({
+        id: wh.warden.id,
+        fullName: wh.warden.fullName,
+        email: wh.warden.user.email,
+        isApproved: wh.warden.isApproved
+      }))
+    })
+  } catch (error) {
+    console.error("Error fetching hostel assignments:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+
+// Bulk assign wardens to hostels
+export const bulkAssignWardensToHostels = async (req, res) => {
+  try {
+    const { assignments } = req.body // Array of { wardenId, hostelId }
+
+    if (!Array.isArray(assignments) || assignments.length === 0) {
+      return res.status(400).json({ message: "Assignments array is required and cannot be empty" })
+    }
+
+    const results = []
+    const errors = []
+
+    for (const assignment of assignments) {
+      try {
+        const { wardenId, hostelId } = assignment
+
+        // Check if warden exists and is approved
+        const warden = await prisma.warden.findUnique({
+          where: { id: Number.parseInt(wardenId) }
+        })
+
+        if (!warden) {
+          errors.push({
+            wardenId,
+            hostelId,
+            error: "Warden not found"
+          })
+          continue
+        }
+
+        if (!warden.isApproved) {
+          errors.push({
+            wardenId,
+            hostelId,
+            error: "Warden must be approved before assignment"
+          })
+          continue
+        }
+
+        // Check if hostel exists
+        const hostel = await prisma.hostel.findUnique({
+          where: { id: Number.parseInt(hostelId) }
+        })
+
+        if (!hostel) {
+          errors.push({
+            wardenId,
+            hostelId,
+            error: "Hostel not found"
+          })
+          continue
+        }
+
+        // Check if assignment already exists
+        const existingAssignment = await prisma.wardenHostel.findUnique({
+          where: {
+            wardenId_hostelId: {
+              wardenId: Number.parseInt(wardenId),
+              hostelId: Number.parseInt(hostelId)
+            }
+          }
+        })
+
+        if (existingAssignment) {
+          errors.push({
+            wardenId,
+            hostelId,
+            error: "Assignment already exists"
+          })
+          continue
+        }
+
+        // Create assignment
+        const wardenHostel = await prisma.wardenHostel.create({
+          data: {
+            wardenId: Number.parseInt(wardenId),
+            hostelId: Number.parseInt(hostelId),
+          },
+          include: {
+            hostel: true,
+            warden: {
+              include: {
+                user: {
+                  select: {
+                    email: true
+                  }
+                }
+              }
+            }
+          }
+        })
+
+        results.push(wardenHostel)
+      } catch (error) {
+        errors.push({
+          wardenId: assignment.wardenId,
+          hostelId: assignment.hostelId,
+          error: "Failed to create assignment"
+        })
+      }
+    }
+
+    res.status(200).json({
+      message: `Bulk assignment completed. ${results.length} successful, ${errors.length} failed.`,
+      successful: results,
+      errors: errors
+    })
+  } catch (error) {
+    console.error("Error in bulk assignment:", error)
     res.status(500).json({ message: "Internal server error" })
   }
 }
