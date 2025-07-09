@@ -71,6 +71,10 @@ model Student {
   address          String
   pinCode          String
   distanceFromCollege Float
+  adharCard          String? @default("")
+  registrationCard   String? @default("")
+  photo              String? @default("")
+  prevSemesterMarksheet  String? @default("")
   roomAllocations  RoomAllocation[]
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
@@ -148,6 +152,8 @@ model Payment {
   status       PaymentStatus @default(PENDING)
   dueDate      DateTime
   paidAt       DateTime?
+  semester     Int
+  year         Int
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }

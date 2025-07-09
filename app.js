@@ -10,11 +10,13 @@ import paymentRoutes from "./routes/payment.routes.js"
 import { errorHandler } from "./middleware/error.middleware.js"
 import { authenticateToken } from "./middleware/auth.middleware.js"
 import bcrypt from "bcrypt"
-
+import AWS from 'aws-sdk';
 import prisma from "./config/db.js"
+import multer from "multer";
 import 'dotenv/config'
 import { sendEMail } from "./utils/email.service.js"
 // Create Express app
+
 const app = express()
 const PORT = process.env.PORT || 8080
 
@@ -24,12 +26,65 @@ app.use(helmet())
 app.use(morgan("dev"))
 app.use(express.json())
 
+
+// AWS.config.update({
+//   secretAccessKey: process.env.AWS_SECERET_KEY,
+//   accessKeyId: process.envAWS_ACCESS_KEY,
+//   region: 'ap-south-1'
+// })
+
+// const s3 = new AWS.S3({
+//   accessKeyId:process.envAWS_ACCESS_KEY,
+//   secretAccessKey:process.env.AWS_SECERET_KEY,
+//   region:"ap-south-1"
+// })
+
+// const storage = multer.memoryStorage();
+// const upload = multer({ storage: storage });
+// function uploadFileToS3(bucketName, fileName, fileBuffer, fileType) {
+//   const params = {
+//     Bucket: bucketName,
+//     Key: fileName,
+//     Body: fileBuffer,
+//     ContentType: fileType,
+//     ACL: "public-read", // Optional: make the file publicly accessible
+//   };
+
+//   return s3.upload(params).promise()
+// }
+// app.post("/api/upload-files", upload.single("file"), async (req, res) => {
+//   try {
+//     const file = req.file;
+
+//     if (!file) {
+//       return res.status(400).json({ error: "No file uploaded" });
+//     }
+
+//     const result = await uploadFileToS3(
+//       "ap-south-1",
+//       file.originalname,
+//       file.buffer,
+//       file.mimetype
+//     );
+
+//     // Save `result.Location` in DB if needed
+
+//     res.status(200).json({
+//       message: "File uploaded successfully",
+//       url: result.Location,
+//     });
+//   } catch (error) {
+//     console.error("Upload error:", error);
+//     res.status(500).json({ error: "Failed to upload file" });
+//   }
+// });
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", message: "Server is running" })
 })
 
 // Routes
+
 
 app.post("/api/create-admin", async (req, res) => {
   try {

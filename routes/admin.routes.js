@@ -72,6 +72,31 @@ router.delete("/rooms/:roomId", (req, res, next) => {
   }
 }, deleteRoom)
 
+// Student management routes - accessible by both ADMIN and WARDEN
+router.get("/students", (req, res, next) => {
+  if (req.user.role === "ADMIN" || req.user.role === "WARDEN") {
+    next()
+  } else {
+    res.status(403).json({ message: "Access denied" })
+  }
+}, getAllStudents)
+
+router.get("/students/:studentId", (req, res, next) => {
+  if (req.user.role === "ADMIN" || req.user.role === "WARDEN") {
+    next()
+  } else {
+    res.status(403).json({ message: "Access denied" })
+  }
+}, getStudent)
+
+router.delete("/students/:studentId", (req, res, next) => {
+  if (req.user.role === "ADMIN" || req.user.role === "WARDEN") {
+    next()
+  } else {
+    res.status(403).json({ message: "Access denied" })
+  }
+}, deleteStudent)
+
 // Apply middleware to check if user is an admin for remaining routes
 router.use(checkRole("ADMIN"))
 
@@ -96,9 +121,6 @@ router.post("/wardens", validateRegisterWarden, createWarden)
 router.put("/wardens/:wardenId", validateUpdateWarden, updateWarden)
 router.put("/wardens/:wardenId/approve", approveWarden)
 router.delete("/wardens/:wardenId", deleteWarden)
-router.get("/students", getAllStudents)
-router.get("/students/:studentId", getStudent)
-router.delete("/students/:studentId", deleteStudent)
 router.post("/create-admin", validateCreateAdmin, createAdmin)
 router.post("/payments", createPayment)
 router.post("/hostels/allocate", allocateHostelsBulk)

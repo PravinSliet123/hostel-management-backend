@@ -3,11 +3,53 @@ import prisma from "../config/db.js"
 // Get all payments for a user
 export const getUserPayments = async (req, res) => {
   try {
-    const userId = req.user.id
+    const { studentId } = req.query
 
     const payments = await prisma.payment.findMany({
-      where: { userId },
+      where: {
+        user: {
+          student: {
+            id: studentId
+          }
+        }
+      },
+      include: {
+        user: {
+          select: {
+            email: true,
+            student: {}
+          }
+        }
+      }
+    })
+
+    res.status(200).json(payments)
+  } catch (error) {
+    console.error("Error fetching payments:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+export const getAllPayemntPayments = async (req, res) => {
+  try {
+    const { semester } = req.query
+    console.log("semester", semester)
+    let where = {}
+    if (semester) {
+      where.semester = semester
+    }
+    const payments = await prisma.payment.findMany({
+      where: {
+        ...(semester && { semester: Number(semester) })
+      },
       orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            email: true,
+            student: {}
+          }
+        }
+      }
     })
 
     res.status(200).json(payments)
@@ -22,13 +64,12 @@ export const makePayment = async (req, res) => {
   try {
     const userId = req.user.id
     const { paymentId } = req.params
-    const { transactionId } = req.body
+  console.log(paymentId)
 
     // Find payment
     const payment = await prisma.payment.findFirst({
       where: {
-        id: Number.parseInt(paymentId),
-        userId,
+        id: Number.parseInt(paymentId)
       },
     })
 
@@ -56,5 +97,56 @@ export const makePayment = async (req, res) => {
   } catch (error) {
     console.error("Error making payment:", error)
     res.status(500).json({ message: "Internal server error" })
+  }
+}
+
+// Get payment details for a specific student, semester, and year (admin/warden only)
+export const getStudentPaymentDetails = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const payments = await prisma.payment.findMany({
+      where: {
+        user:{
+          student:{
+            id: Number(studentId)
+          }
+        }
+      },
+      include: {
+        user: {
+          select: {
+            email: true,
+            student: {}
+          }
+        }
+      },
+      orderBy:{
+        createdAt:'asc'
+      }
+    });
+    res.status(200).json(payments);
+  } catch (error) {
+    console.error("Error fetching student payment details:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+// Get all payment history for a student, semester-wise (admin/warden only)
+export const getStudentPaymentHistory = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const payments = await prisma.payment.findMany({
+      where: { userId: Number(studentId) },
+      orderBy: [
+        { year: 'desc' },
+        { semester: 'desc' },
+        { createdAt: 'desc' },
+      ],
+    });
+    res.status(200).json(payments);
+  } catch (error) {
+    console.error("Error fetching student payment history:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 }

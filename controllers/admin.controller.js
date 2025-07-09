@@ -696,11 +696,30 @@ export const rejectWarden = async (req, res) => {
 // Get all students
 export const getAllStudents = async (req, res) => {
   try {
+    const { hostelId } = req.query;
+    console.log("hostelId",hostelId)
     const students = await prisma.student.findMany({
+      where: hostelId
+        ? {
+            roomAllocations: {
+              some: {
+                isActive: true,
+                room: {
+                  hostelId: Number(hostelId)
+                }
+              }
+            }
+          }
+        : undefined,
       include: {
         roomAllocations: {
           where: {
-            isActive: true
+            isActive: true,
+            ...(hostelId && {
+              room: {
+                hostelId: Number(hostelId)
+              }
+            })
           },
           include: {
             room: {
@@ -1496,10 +1515,57 @@ export const allocateRoom = async (req, res) => {
       })
     ])
 
-    res.status(201).json({
-      message: "Room allocated successfully",
-      allocation
-    })
+    // Only create payment if allocation was successful
+    if (allocation) {
+      const payment = await prisma.payment.create({
+        data: {
+          userId: student.userId,
+          amount: 1500,
+          description: `Hostel fee for semester ${student.semester}, year ${student.year}`,
+          dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // 15 days from now
+          semester: student.semester,
+          year: student.year
+        }
+      })
+
+      // Fetch student user email
+      const user = await prisma.user.findUnique({
+        where: { id: student.userId },
+        
+      })
+
+      console.log("user",user)
+      // Send email to student
+      try {
+        await sendEMail({
+          to: user.email,
+          subject: "Hostel Payment Created",
+          html: `<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+            <h2 style='color: #333;'>Hostel Payment Created</h2>
+            <p>Hello ${user.fullName || "Student"},</p>
+            <p>Your hostel payment has been created for semester ${student.semester}, year ${student.year}.</p>
+            <ul>
+              <li><strong>Amount:</strong> ₹1500</li>
+              <li><strong>Due Date:</strong> ${payment.dueDate.toLocaleDateString()}</li>
+              <li><strong>Status:</strong> ${payment.status}</li>
+            </ul>
+            <p>Please pay before the due date to avoid any penalties.</p>
+            <p>Best regards,<br>Hostel Management Team</p>
+          </div>`
+        })
+      } catch (emailError) {
+        console.error("Error sending payment email to student:", emailError)
+        // Continue even if email fails
+      }
+
+      return res.status(201).json({
+        message: "Room allocated successfully and payment created",
+        allocation,
+        payment
+      })
+    } else {
+      return res.status(500).json({ message: "Room allocation failed, payment not created" })
+    }
   } catch (error) {
     console.error("Error allocating room:", error)
     res.status(500).json({ message: "Internal server error" })

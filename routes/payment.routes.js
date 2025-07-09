@@ -1,10 +1,15 @@
 import express from "express"
-import { getUserPayments, makePayment } from "../controllers/payment.controller.js"
+import { getUserPayments, getAllPayemntPayments,makePayment, getStudentPaymentDetails, getStudentPaymentHistory } from "../controllers/payment.controller.js"
+import { authenticateToken, authorizeRoles } from "../middleware/auth.middleware.js"
+import { asyncHandler } from "../utils/asyncHandler.js"
 
 const router = express.Router()
 
 // Payment routes
-router.get("/", getUserPayments)
+router.get("/all", authenticateToken,authorizeRoles("ADMIN", "WARDEN"),(getAllPayemntPayments))
+// router.get("/", asyncHandler(getUserPayments))
 router.post("/:paymentId", makePayment)
+router.get("/student/:studentId", authenticateToken, authorizeRoles("ADMIN", "WARDEN"), asyncHandler(getStudentPaymentDetails))
+router.get("/student/:studentId/history", authenticateToken, authorizeRoles("ADMIN", "WARDEN"), asyncHandler(getStudentPaymentHistory))
 
 export default router

@@ -1,4 +1,5 @@
 import prisma from "../config/db.js"
+import { sendEMail } from "../utils/email.service.js"
 
 // Get warden profile
 export const getProfile = async (req, res) => {
@@ -75,7 +76,7 @@ export const getRooms = async (req, res) => {
 
     // Get rooms in all hostels assigned to warden
     const rooms = await prisma.room.findMany({
-      where: { 
+      where: {
         hostelId: {
           in: hostelIds,
         },
@@ -235,7 +236,7 @@ export const getStudentPayments = async (req, res) => {
     // Format response with more detailed information
     const studentsWithPayments = students.map((student) => {
       const activeAllocation = student.roomAllocations[0]; // Should only be one active allocation
-      
+
       return {
         id: student.id,
         fullName: student.fullName,
@@ -285,10 +286,10 @@ export const getHostels = async (req, res) => {
         hostels: {
           include: {
             hostel: true,
-            
+
           },
         },
-        
+
       },
     })
 
@@ -302,6 +303,81 @@ export const getHostels = async (req, res) => {
     res.status(200).json(hostels)
   } catch (error) {
     console.error("Error fetching hostels:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+export const deleteStudent = async (req, res) => {
+  try {
+    const { studentId } = req.params
+
+    // Check if student exists and get their details
+    const student = await prisma.student.findUnique({
+      where: { id: Number.parseInt(studentId) },
+      include: {
+        user: true,
+        roomAllocations: {
+          where: { isActive: true },
+          include: {
+            room: true
+          }
+        }
+      },
+    })
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" })
+    }
+
+    // Delete student and all related data in a transaction
+    await prisma.$transaction(async (tx) => {
+      // If student has active room allocation, update room vacancy
+      if (student.roomAllocations.length > 0) {
+        await tx.room.update({
+          where: { id: student.roomAllocations[0].roomId },
+          data: {
+            vacantSeats: {
+              increment: 1
+            }
+          }
+        })
+      }
+
+      // Delete all payments for this user
+      await tx.payment.deleteMany({
+        where: { userId: student.userId }
+      });
+
+      // Delete all room allocations
+      await tx.roomAllocation.deleteMany({
+        where: { studentId: Number.parseInt(studentId) }
+      })
+
+      // Delete the student
+      await tx.student.delete({
+        where: { id: Number.parseInt(studentId) }
+      })
+
+      // Delete the associated user
+      await tx.user.delete({
+        where: { id: student.userId }
+      })
+    })
+
+    // Send email notification
+    await sendEMail({
+      to: student.user.email,
+      subject: "Your Account Deleted",
+      html: `
+    <p>Hello ${student.fullName},</p>
+    <p> Your warden account has been deleted from the system.</p>
+  `,
+    });
+
+    res.status(200).json({
+      message: "Student deleted successfully",
+    })
+  } catch (error) {
+    console.error("Error deleting student:", error)
     res.status(500).json({ message: "Internal server error" })
   }
 }
@@ -372,13 +448,13 @@ export const getHostelDetails = async (req, res) => {
   try {
     const userId = req.user.id
     const { hostelId } = req.params
-    console.log("hossss",Number(hostelId))
+    console.log("hossss", Number(hostelId))
 
     // Get warden with assigned hostels
     const hostelById = await prisma.hostel.findFirst({
-      where: { id:Number(hostelId) },
+      where: { id: Number(hostelId) },
       include: {
-      rooms:{}
+        rooms: {}
       },
     })
 
@@ -388,7 +464,7 @@ export const getHostelDetails = async (req, res) => {
 
 
     const hostelWithStats = {
-     data:hostelById
+      data: hostelById
     }
 
 
@@ -483,138 +559,46 @@ export const getRoomDetails = async (req, res) => {
 // Get student payment status for a specific hostel
 export const getStudentPaymentsByHostel = async (req, res) => {
   try {
-    const userId = req.user.id
     const { hostelId } = req.params
+    console.log("hoetlid",hostelId)
 
-    // Get warden with assigned hostels
-    const warden = await prisma.warden.findFirst({
-      where: { userId },
-      include: {
-        hostels: {
-          include: {
-            hostel: true,
-          },
-        },
-      },
-    })
-    console.log("warden=>",warden)
-
-    if (!warden) {
-      return res.status(404).json({ message: "Warden not found" })
+    if (!hostelId) {
+      return res.status(403).json({ message: "Hostel Id id incorrect" })
     }
 
-    // Check if warden is assigned to this hostel
-    const isAssigned = warden.hostels.some(
-      (wardenHostel) => wardenHostel.hostelId === Number.parseInt(hostelId)
-    )
-
-    if (!isAssigned) {
-      return res.status(403).json({ message: "Not authorized to access this hostel" })
-    }
-
-    // Get students in the specific hostel
     const students = await prisma.student.findMany({
       where: {
         roomAllocations: {
           some: {
-            room: {
-              hostelId: Number.parseInt(hostelId),
-            },
             isActive: true,
+            room: {
+              hostelId: Number(hostelId),
+            },
           },
         },
       },
       include: {
-        user: {
-          include: {
-            payments: {
-              orderBy: {
-                createdAt: 'desc',
-              },
-            },
-          },
-        },
         roomAllocations: {
           where: {
-            room: {
-              hostelId: Number.parseInt(hostelId),
-            },
             isActive: true,
+            room: {
+              hostelId: Number(hostelId),
+            },
           },
           include: {
-            room: {
-              include: {
-                hostel: true,
-              },
-            },
+            room: true,
           },
         },
+        user:{
+          select:{
+            email:true
+          }
+        }
       },
     })
 
-    // Format response with detailed information
-    const studentsWithPayments = students.map((student) => {
-      const activeAllocation = student.roomAllocations[0];
-      
-      return {
-        id: student.id,
-        fullName: student.fullName,
-        registrationNo: student.registrationNo,
-        rollNo: student.rollNo,
-        department: student.department,
-        year: student.year,
-        semester: student.semester,
-        roomNumber: activeAllocation?.room?.roomNumber || 'Not allocated',
-        payments: student.user.payments.map(payment => ({
-          id: payment.id,
-          amount: payment.amount,
-          description: payment.description,
-          status: payment.status,
-          dueDate: payment.dueDate,
-          paidAt: payment.paidAt,
-          createdAt: payment.createdAt,
-        })),
-        totalPayments: student.user.payments.length,
-        pendingPayments: student.user.payments.filter(p => p.status === 'PENDING').length,
-        paidPayments: student.user.payments.filter(p => p.status === 'PAID').length,
-        overduePayments: student.user.payments.filter(p => p.status === 'OVERDUE').length,
-        totalAmount: student.user.payments.reduce((sum, p) => sum + p.amount, 0),
-        paidAmount: student.user.payments
-          .filter(p => p.status === 'PAID')
-          .reduce((sum, p) => sum + p.amount, 0),
-        pendingAmount: student.user.payments
-          .filter(p => p.status === 'PENDING')
-          .reduce((sum, p) => sum + p.amount, 0),
-        overdueAmount: student.user.payments
-          .filter(p => p.status === 'OVERDUE')
-          .reduce((sum, p) => sum + p.amount, 0),
-      }
-    })
 
-    // Get hostel details
-    const hostel = await prisma.hostel.findUnique({
-      where: { id: Number.parseInt(hostelId) },
-    })
-
-    res.status(200).json({
-      message: "Student payment status retrieved successfully",
-      hostel: {
-        id: hostel.id,
-        name: hostel.name,
-        type: hostel.type,
-      },
-      totalStudents: studentsWithPayments.length,
-      summary: {
-        totalAmount: studentsWithPayments.reduce((sum, s) => sum + s.totalAmount, 0),
-        paidAmount: studentsWithPayments.reduce((sum, s) => sum + s.paidAmount, 0),
-        pendingAmount: studentsWithPayments.reduce((sum, s) => sum + s.pendingAmount, 0),
-        overdueAmount: studentsWithPayments.reduce((sum, s) => sum + s.overdueAmount, 0),
-        studentsWithPendingPayments: studentsWithPayments.filter(s => s.pendingPayments > 0).length,
-        studentsWithOverduePayments: studentsWithPayments.filter(s => s.overduePayments > 0).length,
-        fullyPaidStudents: studentsWithPayments.filter(s => s.pendingPayments === 0 && s.overduePayments === 0).length,
-      },
-      students: studentsWithPayments,
-    })
+    res.status(200).json(students)
   } catch (error) {
     console.error("Error fetching student payments by hostel:", error)
     res.status(500).json({ message: "Internal server error" })
@@ -683,7 +667,7 @@ export const getPaymentSummary = async (req, res) => {
     // Calculate summary statistics
     const totalStudents = students.length
     const allPayments = students.flatMap(student => student.user.payments)
-    
+
     const summary = {
       totalStudents,
       totalPayments: allPayments.length,
