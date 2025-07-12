@@ -37,6 +37,11 @@ export const registerStudent = async (req, res) => {
       distanceFromCollege,
       hostelId, // Optional
       roomId,   // Optional
+      adharCard,
+      registrationCard,
+      photo,
+      prevSemesterMarksheet
+
     } = req.body
     console.log("Body=>", req.body)
     // Generate a random password
@@ -186,6 +191,10 @@ export const registerStudent = async (req, res) => {
             address,
             pinCode,
             distanceFromCollege: numericFields.distanceFromCollege,
+            adharCard,
+            registrationCard,
+            photo,
+            prevSemesterMarksheet
           },
         })
 

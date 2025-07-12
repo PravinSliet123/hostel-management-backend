@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import express from "express"
 import cors from "cors"
 import helmet from "helmet"
@@ -13,7 +14,7 @@ import bcrypt from "bcrypt"
 import AWS from 'aws-sdk';
 import prisma from "./config/db.js"
 import multer from "multer";
-import 'dotenv/config'
+
 import { sendEMail } from "./utils/email.service.js"
 // Create Express app
 
@@ -28,62 +29,93 @@ app.use(express.json())
 
 
 // AWS.config.update({
-//   secretAccessKey: process.env.AWS_SECERET_KEY,
-//   accessKeyId: process.envAWS_ACCESS_KEY,
+//   secretAccessKey: process.env.AWS_SECRET_KEY,
+//   accessKeyId: process.env.AWS_ACCESS_KEY,
 //   region: 'ap-south-1'
 // })
 
-// const s3 = new AWS.S3({
-//   accessKeyId:process.envAWS_ACCESS_KEY,
-//   secretAccessKey:process.env.AWS_SECERET_KEY,
-//   region:"ap-south-1"
-// })
 
-// const storage = multer.memoryStorage();
-// const upload = multer({ storage: storage });
-// function uploadFileToS3(bucketName, fileName, fileBuffer, fileType) {
-//   const params = {
-//     Bucket: bucketName,
-//     Key: fileName,
-//     Body: fileBuffer,
-//     ContentType: fileType,
-//     ACL: "public-read", // Optional: make the file publicly accessible
-//   };
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: "ap-south-1"
+})
+async function uploadFileToS3(bucketName, fileName, fileBuffer, fileType) {
+  const params = {
+    Bucket: bucketName,
+    Key: fileName,
+    Body: fileBuffer,
+    ContentType: fileType
+  };
 
-//   return s3.upload(params).promise()
-// }
-// app.post("/api/upload-files", upload.single("file"), async (req, res) => {
-//   try {
-//     const file = req.file;
+  return s3.upload(params).promise()
+}
+app.post("/api/upload-files", upload.single("file"), async (req, res) => {
+  try {
+    const file = req.file;
+    console.log("Check=>", file);
 
-//     if (!file) {
-//       return res.status(400).json({ error: "No file uploaded" });
-//     }
+    if (!file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
 
-//     const result = await uploadFileToS3(
-//       "ap-south-1",
-//       file.originalname,
-//       file.buffer,
-//       file.mimetype
-//     );
 
-//     // Save `result.Location` in DB if needed
+    const result = await uploadFileToS3(
+      process.env.AWS_S3_BUCKET_NAME || "hostel-gpb",
+      file.originalname,
+      file.buffer,
+      file.mimetype
+    );
 
-//     res.status(200).json({
-//       message: "File uploaded successfully",
-//       url: result.Location,
-//     });
-//   } catch (error) {
-//     console.error("Upload error:", error);
-//     res.status(500).json({ error: "Failed to upload file" });
-//   }
-// });
+    // Save `result.Location` in DB if needed
+
+    res.status(200).json({
+      message: "File uploaded successfully",
+      url: result.Location,
+    });
+  } catch (error) {
+    console.error("Upload error:", error);
+
+    // Provide more specific error messages
+    if (error.code === 'CredentialsError') {
+      return res.status(500).json({
+        error: "AWS credentials not configured properly. Please check your environment variables."
+      });
+    }
+
+    if (error.code === 'NoSuchBucket') {
+      return res.status(500).json({
+        error: "S3 bucket not found. Please check your bucket name configuration."
+      });
+    }
+
+    res.status(500).json({ error: "Failed to upload file", details: error.message });
+  }
+});
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", message: "Server is running" })
 })
 
 // Routes
+
+app.get("/api/get-hostel-public", async (req, res) => {
+
+  try {
+    const hostels = await prisma.hostel.findMany({
+      include: {
+        rooms: {}
+      }
+    })
+
+    res.status(200).json(hostels)
+  } catch (error) {
+    console.error("Error fetching hostels:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+})
 
 
 app.post("/api/create-admin", async (req, res) => {
