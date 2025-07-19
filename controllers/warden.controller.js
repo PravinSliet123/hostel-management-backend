@@ -1,34 +1,33 @@
-import prisma from "../config/db.js"
-import { sendEMail } from "../utils/email.service.js"
+import prisma from "../config/db.js";
+import { sendEMail } from "../utils/email.service.js";
 
 // Get warden profile
 export const getProfile = async (req, res) => {
   try {
-    const userId = req.user.id
+    const userId = req.user.id;
 
     const warden = await prisma.warden.findFirst({
       where: { userId },
       include: {
         hostel: true,
       },
-    })
+    });
 
     if (!warden) {
-      return res.status(404).json({ message: "Warden not found" })
+      return res.status(404).json({ message: "Warden not found" });
     }
 
-    res.status(200).json(warden)
+    res.status(200).json(warden);
   } catch (error) {
-    console.error("Error fetching warden profile:", error)
-    res.status(500).json({ message: "Internal server error" })
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Update warden profile
 export const updateProfile = async (req, res) => {
   try {
-    const userId = req.user.id
-    const { fullName, mobileNo, address, zipCode } = req.body
+    const userId = req.user.id;
+    const { fullName, mobileNo, address, zipCode } = req.body;
 
     const updatedWarden = await prisma.warden.update({
       where: { userId },
@@ -38,22 +37,21 @@ export const updateProfile = async (req, res) => {
         address,
         zipCode,
       },
-    })
+    });
 
     res.status(200).json({
       message: "Profile updated successfully",
       warden: updatedWarden,
-    })
+    });
   } catch (error) {
-    console.error("Error updating warden profile:", error)
-    res.status(500).json({ message: "Internal server error" })
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Get rooms in hostel
 export const getRooms = async (req, res) => {
   try {
-    const userId = req.user.id
+    const userId = req.user.id;
 
     // Get warden with assigned hostels
     const warden = await prisma.warden.findFirst({
@@ -65,14 +63,16 @@ export const getRooms = async (req, res) => {
           },
         },
       },
-    })
+    });
 
     if (!warden || !warden.hostels.length) {
-      return res.status(404).json({ message: "No hostels assigned to warden" })
+      return res.status(404).json({ message: "No hostels assigned to warden" });
     }
 
     // Get hostel IDs assigned to this warden
-    const hostelIds = warden.hostels.map((wardenHostel) => wardenHostel.hostelId)
+    const hostelIds = warden.hostels.map(
+      (wardenHostel) => wardenHostel.hostelId
+    );
 
     // Get rooms in all hostels assigned to warden
     const rooms = await prisma.room.findMany({
@@ -102,21 +102,20 @@ export const getRooms = async (req, res) => {
           },
         },
       },
-    })
+    });
 
-    res.status(200).json(rooms)
+    res.status(200).json(rooms);
   } catch (error) {
-    console.error("Error fetching rooms:", error)
-    res.status(500).json({ message: "Internal server error" })
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Update room details
 export const updateRoom = async (req, res) => {
   try {
-    const userId = req.user.id
-    const { roomId } = req.params
-    const { totalSeats, vacantSeats } = req.body
+    const userId = req.user.id;
+    const { roomId } = req.params;
+    const { totalSeats, vacantSeats } = req.body;
 
     // Get warden with assigned hostels
     const warden = await prisma.warden.findFirst({
@@ -128,14 +127,16 @@ export const updateRoom = async (req, res) => {
           },
         },
       },
-    })
+    });
 
     if (!warden || !warden.hostels.length) {
-      return res.status(404).json({ message: "No hostels assigned to warden" })
+      return res.status(404).json({ message: "No hostels assigned to warden" });
     }
 
     // Get hostel IDs assigned to this warden
-    const hostelIds = warden.hostels.map((wardenHostel) => wardenHostel.hostelId)
+    const hostelIds = warden.hostels.map(
+      (wardenHostel) => wardenHostel.hostelId
+    );
 
     // Check if room belongs to any of warden's hostels
     const room = await prisma.room.findFirst({
@@ -145,10 +146,12 @@ export const updateRoom = async (req, res) => {
           in: hostelIds,
         },
       },
-    })
+    });
 
     if (!room) {
-      return res.status(404).json({ message: "Room not found in your assigned hostels" })
+      return res
+        .status(404)
+        .json({ message: "Room not found in your assigned hostels" });
     }
 
     // Update room
@@ -158,22 +161,21 @@ export const updateRoom = async (req, res) => {
         totalSeats,
         vacantSeats,
       },
-    })
+    });
 
     res.status(200).json({
       message: "Room updated successfully",
       room: updatedRoom,
-    })
+    });
   } catch (error) {
-    console.error("Error updating room:", error)
-    res.status(500).json({ message: "Internal server error" })
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Get student payment status
 export const getStudentPayments = async (req, res) => {
   try {
-    const userId = req.user.id
+    const userId = req.user.id;
 
     // Get warden with assigned hostels
     const warden = await prisma.warden.findFirst({
@@ -185,14 +187,16 @@ export const getStudentPayments = async (req, res) => {
           },
         },
       },
-    })
+    });
 
     if (!warden || !warden.hostels.length) {
-      return res.status(404).json({ message: "No hostels assigned to warden" })
+      return res.status(404).json({ message: "No hostels assigned to warden" });
     }
 
     // Get hostel IDs assigned to this warden
-    const hostelIds = warden.hostels.map((wardenHostel) => wardenHostel.hostelId)
+    const hostelIds = warden.hostels.map(
+      (wardenHostel) => wardenHostel.hostelId
+    );
 
     // Get students in all hostels assigned to warden
     const students = await prisma.student.findMany({
@@ -213,7 +217,7 @@ export const getStudentPayments = async (req, res) => {
           include: {
             payments: {
               orderBy: {
-                createdAt: 'desc',
+                createdAt: "desc",
               },
             },
           },
@@ -231,7 +235,7 @@ export const getStudentPayments = async (req, res) => {
           },
         },
       },
-    })
+    });
 
     // Format response with more detailed information
     const studentsWithPayments = students.map((student) => {
@@ -245,9 +249,9 @@ export const getStudentPayments = async (req, res) => {
         department: student.department,
         year: student.year,
         semester: student.semester,
-        hostel: activeAllocation?.room?.hostel?.name || 'Not allocated',
-        roomNumber: activeAllocation?.room?.roomNumber || 'Not allocated',
-        payments: student.user.payments.map(payment => ({
+        hostel: activeAllocation?.room?.hostel?.name || "Not allocated",
+        roomNumber: activeAllocation?.room?.roomNumber || "Not allocated",
+        payments: student.user.payments.map((payment) => ({
           id: payment.id,
           amount: payment.amount,
           description: payment.description,
@@ -257,28 +261,32 @@ export const getStudentPayments = async (req, res) => {
           createdAt: payment.createdAt,
         })),
         totalPayments: student.user.payments.length,
-        pendingPayments: student.user.payments.filter(p => p.status === 'PENDING').length,
-        paidPayments: student.user.payments.filter(p => p.status === 'PAID').length,
-        overduePayments: student.user.payments.filter(p => p.status === 'OVERDUE').length,
-      }
-    })
+        pendingPayments: student.user.payments.filter(
+          (p) => p.status === "PENDING"
+        ).length,
+        paidPayments: student.user.payments.filter((p) => p.status === "PAID")
+          .length,
+        overduePayments: student.user.payments.filter(
+          (p) => p.status === "OVERDUE"
+        ).length,
+      };
+    });
 
     res.status(200).json({
       message: "Student payment status retrieved successfully",
       totalStudents: studentsWithPayments.length,
       students: studentsWithPayments,
-    })
+    });
   } catch (error) {
-    console.error("Error fetching student payments:", error)
-    res.status(500).json({ message: "Internal server error" })
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Get all hostels assigned to warden
 export const getHostels = async (req, res) => {
   try {
-    const userId = req.user.id
-    console.log("userId", userId)
+    const userId = req.user.id;
+
     // Get warden with assigned hostels
     const warden = await prisma.warden.findFirst({
       where: { userId },
@@ -286,29 +294,40 @@ export const getHostels = async (req, res) => {
         hostels: {
           include: {
             hostel: true,
-
           },
         },
-
       },
-    })
+    });
 
     if (!warden) {
-      return res.status(404).json({ message: "Warden not found" })
+      return res.status(404).json({ message: "Warden not found" });
     }
 
-    // Extract hostels from the relationship
-    const hostels = warden.hostels.map((wardenHostel) => wardenHostel.hostel)
+    const getHostel = await prisma.wardenHostel.findMany({
+      where: {
+        wardenId: Number(warden.id),
+      },
+      include: {
+        hostel: {
+          include: {
+            rooms: {},
+          },
+        },
+        warden: true,
+      },
+    });
 
-    res.status(200).json(hostels)
+    // Extract hostels from the relationship
+    const hostels = warden.hostels.map((wardenHostel) => wardenHostel.hostel);
+
+    res.status(200).json(getHostel);
   } catch (error) {
-    console.error("Error fetching hostels:", error)
-    res.status(500).json({ message: "Internal server error" })
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 export const deleteStudent = async (req, res) => {
   try {
-    const { studentId } = req.params
+    const { studentId } = req.params;
 
     // Check if student exists and get their details
     const student = await prisma.student.findUnique({
@@ -318,14 +337,14 @@ export const deleteStudent = async (req, res) => {
         roomAllocations: {
           where: { isActive: true },
           include: {
-            room: true
-          }
-        }
+            room: true,
+          },
+        },
       },
-    })
+    });
 
     if (!student) {
-      return res.status(404).json({ message: "Student not found" })
+      return res.status(404).json({ message: "Student not found" });
     }
 
     // Delete student and all related data in a transaction
@@ -336,32 +355,32 @@ export const deleteStudent = async (req, res) => {
           where: { id: student.roomAllocations[0].roomId },
           data: {
             vacantSeats: {
-              increment: 1
-            }
-          }
-        })
+              increment: 1,
+            },
+          },
+        });
       }
 
       // Delete all payments for this user
       await tx.payment.deleteMany({
-        where: { userId: student.userId }
+        where: { userId: student.userId },
       });
 
       // Delete all room allocations
       await tx.roomAllocation.deleteMany({
-        where: { studentId: Number.parseInt(studentId) }
-      })
+        where: { studentId: Number.parseInt(studentId) },
+      });
 
       // Delete the student
       await tx.student.delete({
-        where: { id: Number.parseInt(studentId) }
-      })
+        where: { id: Number.parseInt(studentId) },
+      });
 
       // Delete the associated user
       await tx.user.delete({
-        where: { id: student.userId }
-      })
-    })
+        where: { id: student.userId },
+      });
+    });
 
     // Send email notification
     await sendEMail({
@@ -375,18 +394,17 @@ export const deleteStudent = async (req, res) => {
 
     res.status(200).json({
       message: "Student deleted successfully",
-    })
+    });
   } catch (error) {
-    console.error("Error deleting student:", error)
-    res.status(500).json({ message: "Internal server error" })
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Get rooms of a specific hostel
 export const getHostelRooms = async (req, res) => {
   try {
-    const userId = req.user.id
-    const { hostelId } = req.params
+    const userId = req.user.id;
+    const { hostelId } = req.params;
 
     // Get warden with assigned hostels
     const warden = await prisma.warden.findFirst({
@@ -398,19 +416,21 @@ export const getHostelRooms = async (req, res) => {
           },
         },
       },
-    })
+    });
 
     if (!warden) {
-      return res.status(404).json({ message: "Warden not found" })
+      return res.status(404).json({ message: "Warden not found" });
     }
 
     // Check if warden is assigned to this hostel
     const isAssigned = warden.hostels.some(
       (wardenHostel) => wardenHostel.hostelId === Number.parseInt(hostelId)
-    )
+    );
 
     if (!isAssigned) {
-      return res.status(403).json({ message: "Not authorized to access this hostel" })
+      return res
+        .status(403)
+        .json({ message: "Not authorized to access this hostel" });
     }
 
     // Get rooms in the hostel
@@ -434,52 +454,45 @@ export const getHostelRooms = async (req, res) => {
           },
         },
       },
-    })
+    });
 
-    res.status(200).json(rooms)
+    res.status(200).json(rooms);
   } catch (error) {
-    console.error("Error fetching hostel rooms:", error)
-    res.status(500).json({ message: "Internal server error" })
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Get details of a single hostel
 export const getHostelDetails = async (req, res) => {
   try {
-    const userId = req.user.id
-    const { hostelId } = req.params
-    console.log("hossss", Number(hostelId))
+    const userId = req.user.id;
+    const { hostelId } = req.params;
 
     // Get warden with assigned hostels
     const hostelById = await prisma.hostel.findFirst({
       where: { id: Number(hostelId) },
       include: {
-        rooms: {}
+        rooms: {},
       },
-    })
-
+    });
 
     // Get hostel details with room statistics
 
-
-
     const hostelWithStats = {
-      data: hostelById
-    }
+      data: hostelById,
+    };
 
-
-    res.status(200).json(hostelWithStats)
+    res.status(200).json(hostelWithStats);
   } catch (error) {
-    console.error("Error fetching hostel details:", error)
-    res.status(500).json({ message: "Internal server error" })
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Get details of a single room
 export const getRoomDetails = async (req, res) => {
   try {
-    const userId = req.user.id
-    const { roomId } = req.params
+    const userId = req.user.id;
+    const { roomId } = req.params;
 
     // Get warden with assigned hostels
     const warden = await prisma.warden.findFirst({
@@ -491,10 +504,10 @@ export const getRoomDetails = async (req, res) => {
           },
         },
       },
-    })
+    });
 
     if (!warden) {
-      return res.status(404).json({ message: "Warden not found" })
+      return res.status(404).json({ message: "Warden not found" });
     }
 
     // Get room details
@@ -524,46 +537,52 @@ export const getRoomDetails = async (req, res) => {
           },
         },
       },
-    })
+    });
 
     if (!room) {
-      return res.status(404).json({ message: "Room not found" })
+      return res.status(404).json({ message: "Room not found" });
     }
 
     // Check if warden is assigned to this room's hostel
     const isAssigned = warden.hostels.some(
       (wardenHostel) => wardenHostel.hostelId === room.hostelId
-    )
+    );
 
     if (!isAssigned) {
-      return res.status(403).json({ message: "Not authorized to access this room" })
+      return res
+        .status(403)
+        .json({ message: "Not authorized to access this room" });
     }
 
     // Calculate room statistics
     const roomWithStats = {
       ...room,
       statistics: {
-        occupancyRate: room.totalSeats > 0 ? (((room.totalSeats - room.vacantSeats) / room.totalSeats) * 100).toFixed(2) : 0,
+        occupancyRate:
+          room.totalSeats > 0
+            ? (
+                ((room.totalSeats - room.vacantSeats) / room.totalSeats) *
+                100
+              ).toFixed(2)
+            : 0,
         availableSeats: room.vacantSeats,
         occupiedSeats: room.totalSeats - room.vacantSeats,
       },
-    }
+    };
 
-    res.status(200).json(roomWithStats)
+    res.status(200).json(roomWithStats);
   } catch (error) {
-    console.error("Error fetching room details:", error)
-    res.status(500).json({ message: "Internal server error" })
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Get student payment status for a specific hostel
 export const getStudentPaymentsByHostel = async (req, res) => {
   try {
-    const { hostelId } = req.params
-    console.log("hoetlid",hostelId)
+    const { hostelId } = req.params;
 
     if (!hostelId) {
-      return res.status(403).json({ message: "Hostel Id id incorrect" })
+      return res.status(403).json({ message: "Hostel Id id incorrect" });
     }
 
     const students = await prisma.student.findMany({
@@ -589,26 +608,24 @@ export const getStudentPaymentsByHostel = async (req, res) => {
             room: true,
           },
         },
-        user:{
-          select:{
-            email:true
-          }
-        }
+        user: {
+          select: {
+            email: true,
+          },
+        },
       },
-    })
+    });
 
-
-    res.status(200).json(students)
+    res.status(200).json(students);
   } catch (error) {
-    console.error("Error fetching student payments by hostel:", error)
-    res.status(500).json({ message: "Internal server error" })
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Get payment summary statistics for all assigned hostels
 export const getPaymentSummary = async (req, res) => {
   try {
-    const userId = req.user.id
+    const userId = req.user.id;
 
     // Get warden with assigned hostels
     const warden = await prisma.warden.findFirst({
@@ -620,14 +637,16 @@ export const getPaymentSummary = async (req, res) => {
           },
         },
       },
-    })
+    });
 
     if (!warden || !warden.hostels.length) {
-      return res.status(404).json({ message: "No hostels assigned to warden" })
+      return res.status(404).json({ message: "No hostels assigned to warden" });
     }
 
     // Get hostel IDs assigned to this warden
-    const hostelIds = warden.hostels.map((wardenHostel) => wardenHostel.hostelId)
+    const hostelIds = warden.hostels.map(
+      (wardenHostel) => wardenHostel.hostelId
+    );
 
     // Get all students in assigned hostels
     const students = await prisma.student.findMany({
@@ -662,39 +681,56 @@ export const getPaymentSummary = async (req, res) => {
           },
         },
       },
-    })
+    });
 
     // Calculate summary statistics
-    const totalStudents = students.length
-    const allPayments = students.flatMap(student => student.user.payments)
+    const totalStudents = students.length;
+    const allPayments = students.flatMap((student) => student.user.payments);
 
     const summary = {
       totalStudents,
       totalPayments: allPayments.length,
       totalAmount: allPayments.reduce((sum, p) => sum + p.amount, 0),
-      paidAmount: allPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0),
-      pendingAmount: allPayments.filter(p => p.status === 'PENDING').reduce((sum, p) => sum + p.amount, 0),
-      overdueAmount: allPayments.filter(p => p.status === 'OVERDUE').reduce((sum, p) => sum + p.amount, 0),
-      studentsWithPendingPayments: students.filter(s => s.user.payments.some(p => p.status === 'PENDING')).length,
-      studentsWithOverduePayments: students.filter(s => s.user.payments.some(p => p.status === 'OVERDUE')).length,
-      fullyPaidStudents: students.filter(s => !s.user.payments.some(p => p.status === 'PENDING' || p.status === 'OVERDUE')).length,
+      paidAmount: allPayments
+        .filter((p) => p.status === "PAID")
+        .reduce((sum, p) => sum + p.amount, 0),
+      pendingAmount: allPayments
+        .filter((p) => p.status === "PENDING")
+        .reduce((sum, p) => sum + p.amount, 0),
+      overdueAmount: allPayments
+        .filter((p) => p.status === "OVERDUE")
+        .reduce((sum, p) => sum + p.amount, 0),
+      studentsWithPendingPayments: students.filter((s) =>
+        s.user.payments.some((p) => p.status === "PENDING")
+      ).length,
+      studentsWithOverduePayments: students.filter((s) =>
+        s.user.payments.some((p) => p.status === "OVERDUE")
+      ).length,
+      fullyPaidStudents: students.filter(
+        (s) =>
+          !s.user.payments.some(
+            (p) => p.status === "PENDING" || p.status === "OVERDUE"
+          )
+      ).length,
       paymentStatusBreakdown: {
-        paid: allPayments.filter(p => p.status === 'PAID').length,
-        pending: allPayments.filter(p => p.status === 'PENDING').length,
-        overdue: allPayments.filter(p => p.status === 'OVERDUE').length,
+        paid: allPayments.filter((p) => p.status === "PAID").length,
+        pending: allPayments.filter((p) => p.status === "PENDING").length,
+        overdue: allPayments.filter((p) => p.status === "OVERDUE").length,
       },
-    }
+    };
 
     // Calculate statistics by hostel
     const hostelStats = await Promise.all(
       warden.hostels.map(async (wardenHostel) => {
-        const hostelStudents = students.filter(student =>
-          student.roomAllocations.some(allocation =>
-            allocation.room.hostelId === wardenHostel.hostelId
+        const hostelStudents = students.filter((student) =>
+          student.roomAllocations.some(
+            (allocation) => allocation.room.hostelId === wardenHostel.hostelId
           )
-        )
+        );
 
-        const hostelPayments = hostelStudents.flatMap(student => student.user.payments)
+        const hostelPayments = hostelStudents.flatMap(
+          (student) => student.user.payments
+        );
 
         return {
           hostelId: wardenHostel.hostel.id,
@@ -702,28 +738,42 @@ export const getPaymentSummary = async (req, res) => {
           hostelType: wardenHostel.hostel.type,
           totalStudents: hostelStudents.length,
           totalAmount: hostelPayments.reduce((sum, p) => sum + p.amount, 0),
-          paidAmount: hostelPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0),
-          pendingAmount: hostelPayments.filter(p => p.status === 'PENDING').reduce((sum, p) => sum + p.amount, 0),
-          overdueAmount: hostelPayments.filter(p => p.status === 'OVERDUE').reduce((sum, p) => sum + p.amount, 0),
-          studentsWithPendingPayments: hostelStudents.filter(s => s.user.payments.some(p => p.status === 'PENDING')).length,
-          studentsWithOverduePayments: hostelStudents.filter(s => s.user.payments.some(p => p.status === 'OVERDUE')).length,
-          fullyPaidStudents: hostelStudents.filter(s => !s.user.payments.some(p => p.status === 'PENDING' || p.status === 'OVERDUE')).length,
-        }
+          paidAmount: hostelPayments
+            .filter((p) => p.status === "PAID")
+            .reduce((sum, p) => sum + p.amount, 0),
+          pendingAmount: hostelPayments
+            .filter((p) => p.status === "PENDING")
+            .reduce((sum, p) => sum + p.amount, 0),
+          overdueAmount: hostelPayments
+            .filter((p) => p.status === "OVERDUE")
+            .reduce((sum, p) => sum + p.amount, 0),
+          studentsWithPendingPayments: hostelStudents.filter((s) =>
+            s.user.payments.some((p) => p.status === "PENDING")
+          ).length,
+          studentsWithOverduePayments: hostelStudents.filter((s) =>
+            s.user.payments.some((p) => p.status === "OVERDUE")
+          ).length,
+          fullyPaidStudents: hostelStudents.filter(
+            (s) =>
+              !s.user.payments.some(
+                (p) => p.status === "PENDING" || p.status === "OVERDUE"
+              )
+          ).length,
+        };
       })
-    )
+    );
 
     res.status(200).json({
       message: "Payment summary retrieved successfully",
       summary,
       hostelStats,
-      assignedHostels: warden.hostels.map(wh => ({
+      assignedHostels: warden.hostels.map((wh) => ({
         id: wh.hostel.id,
         name: wh.hostel.name,
         type: wh.hostel.type,
       })),
-    })
+    });
   } catch (error) {
-    console.error("Error fetching payment summary:", error)
-    res.status(500).json({ message: "Internal server error" })
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};

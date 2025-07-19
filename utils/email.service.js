@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer"
+import nodemailer from "nodemailer";
 
 //Send email
 export const sendEMail = async ({ to, subject, html }) => {
@@ -11,11 +11,12 @@ export const sendEMail = async ({ to, subject, html }) => {
   });
 
   await transporter.sendMail({
-    from: `"Support Team" <${process.env.MAIL_USER}>`,
+    from: {
+      name: "Hostel Management System Buxar Support",
+      address: process.env.EMAIL_FROM,
+    },
     to,
     subject,
     html,
   });
 };
-
-

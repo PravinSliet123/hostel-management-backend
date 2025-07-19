@@ -1,76 +1,73 @@
-import prisma from "../config/db.js"
-import bcrypt from "bcrypt"
-import { sendEMail } from "../utils/email.service.js"
-import { generateRandomPassword } from "../utils/password.generator.js"
+import prisma from "../config/db.js";
+import bcrypt from "bcrypt";
+import { sendEMail } from "../utils/email.service.js";
+import { generateRandomPassword } from "../utils/password.generator.js";
 
 // Get all hostels
 export const getAllHostels = async (req, res) => {
   try {
     const hostels = await prisma.hostel.findMany({
       include: {
-        rooms: {}
-      }
-    })
+        rooms: {},
+      },
+    });
 
-    res.status(200).json(hostels)
+    res.status(200).json(hostels);
   } catch (error) {
-    console.error("Error fetching hostels:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error fetching hostels:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 export const getHostel = async (req, res) => {
   try {
-    const { hostelId } = req.params
+    const { hostelId } = req.params;
 
     // Check if student exists and get their details
     const hostel = await prisma.hostel.findUnique({
       where: { id: Number.parseInt(hostelId) },
       include: {
-        rooms: {
-
-        }
-      }
-    })
+        rooms: {},
+      },
+    });
 
     if (!hostel) {
-      return res.status(404).json({ message: "Student not found" })
+      return res.status(404).json({ message: "Student not found" });
     }
 
     res.status(200).json({
       message: "Student date fetched successfully",
-      data: hostel
-
-    })
+      data: hostel,
+    });
   } catch (error) {
-    console.error("Error deleting student:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error deleting student:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 // Create hostel
 export const createHostel = async (req, res) => {
   try {
     // Check if request body exists
     if (!req.body) {
-      return res.status(400).json({ message: "Request body is required" })
+      return res.status(400).json({ message: "Request body is required" });
     }
 
-    const { name, type } = req.body
+    const { name, type } = req.body;
 
     // Validate required fields
     if (!name || !type) {
       return res.status(400).json({
         message: "Name and type are required fields",
-        received: { name, type }
-      })
+        received: { name, type },
+      });
     }
 
     // Check if hostel already exists
     const existingHostel = await prisma.hostel.findUnique({
       where: { name },
-    })
+    });
 
     if (existingHostel) {
-      return res.status(400).json({ message: "Hostel already exists" })
+      return res.status(400).json({ message: "Hostel already exists" });
     }
 
     // Create hostel
@@ -79,92 +76,94 @@ export const createHostel = async (req, res) => {
         name,
         type,
       },
-    })
+    });
 
     res.status(201).json({
       message: "Hostel created successfully",
       hostel,
-    })
+    });
   } catch (error) {
-    console.error("Error creating hostel:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error creating hostel:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Create room
 export const createRoom = async (req, res) => {
   try {
     if (!req.body) {
-      return res.status(400).json({ message: "Request body is required" })
+      return res.status(400).json({ message: "Request body is required" });
     }
 
-    const { hostelId, roomNumber, totalSeats, roomType } = req.body
+    const { hostelId, roomNumber, totalSeats, roomType } = req.body;
 
     // Validate required fields
     if (!hostelId || !roomNumber || !totalSeats || !roomType) {
       return res.status(400).json({
-        message: "hostelId, roomNumber, totalSeats, and roomType are required fields",
-        received: { hostelId, roomNumber, totalSeats, roomType }
-      })
+        message:
+          "hostelId, roomNumber, totalSeats, and roomType are required fields",
+        received: { hostelId, roomNumber, totalSeats, roomType },
+      });
     }
 
     // Convert roomNumber to string and validate other fields
-    const roomNumberStr = String(roomNumber)
-    const hostelIdNum = Number.parseInt(hostelId)
-    const totalSeatsNum = Number.parseInt(totalSeats)
+    const roomNumberStr = String(roomNumber);
+    const hostelIdNum = Number.parseInt(hostelId);
+    const totalSeatsNum = Number.parseInt(totalSeats);
 
     if (isNaN(hostelIdNum) || isNaN(totalSeatsNum)) {
       return res.status(400).json({
-        message: "hostelId and totalSeats must be valid numbers"
-      })
+        message: "hostelId and totalSeats must be valid numbers",
+      });
     }
 
     // Validate roomType
-    if (!['SINGLE', 'DOUBLE', 'TRIPLE'].includes(roomType)) {
+    if (!["SINGLE", "DOUBLE", "TRIPLE"].includes(roomType)) {
       return res.status(400).json({
-        message: "roomType must be one of: SINGLE, DOUBLE, TRIPLE"
-      })
+        message: "roomType must be one of: SINGLE, DOUBLE, TRIPLE",
+      });
     }
 
     // Validate totalSeats based on roomType
     const expectedSeats = {
-      'SINGLE': 1,
-      'DOUBLE': 2,
-      'TRIPLE': 3
-    }
+      SINGLE: 1,
+      DOUBLE: 2,
+      TRIPLE: 3,
+    };
 
     if (totalSeatsNum !== expectedSeats[roomType]) {
       return res.status(400).json({
-        message: `Total seats must be ${expectedSeats[roomType]} for ${roomType} room type`
-      })
+        message: `Total seats must be ${expectedSeats[roomType]} for ${roomType} room type`,
+      });
     }
 
     // Check if hostel exists
     const hostel = await prisma.hostel.findUnique({
       where: { id: hostelIdNum },
-    })
+    });
 
     if (!hostel) {
-      return res.status(404).json({ message: "Hostel not found" })
+      return res.status(404).json({ message: "Hostel not found" });
     }
 
     // If user is a warden, check if they are assigned to this hostel
     if (req.user.role === "WARDEN") {
       const warden = await prisma.warden.findFirst({
-        where: { 
+        where: {
           userId: req.user.id,
           hostels: {
             some: {
-              hostelId: hostelIdNum
-            }
-          }
+              hostelId: hostelIdNum,
+            },
+          },
         },
-      })
+      });
 
       if (!warden) {
-        return res.status(403).json({ 
-          message: "Access denied. You can only create rooms in hostels you are assigned to." 
-        })
+        return res.status(403).json({
+          message:
+            "Access denied. You can only create rooms in hostels you are assigned to.",
+        });
       }
     }
 
@@ -174,10 +173,12 @@ export const createRoom = async (req, res) => {
         hostelId: hostelIdNum,
         roomNumber: roomNumberStr,
       },
-    })
+    });
 
     if (existingRoom) {
-      return res.status(400).json({ message: "Room already exists in this hostel" })
+      return res
+        .status(400)
+        .json({ message: "Room already exists in this hostel" });
     }
 
     // Create room
@@ -189,54 +190,55 @@ export const createRoom = async (req, res) => {
         vacantSeats: totalSeatsNum,
         roomType: roomType,
       },
-    })
+    });
 
     // Update hostel room counts
     await prisma.hostel.update({
       where: { id: hostelIdNum },
       data: {
         totalRooms: {
-          increment: 1
+          increment: 1,
         },
         vacantRooms: {
-          increment: 1
-        }
-      }
-    })
+          increment: 1,
+        },
+      },
+    });
 
     res.status(201).json({
       message: "Room created successfully",
       room,
-    })
+    });
   } catch (error) {
-    console.error("Error creating room:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error creating room:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Update room
 export const updateRoom = async (req, res) => {
   try {
     if (!req.body) {
-      return res.status(400).json({ message: "Request body is required" })
+      return res.status(400).json({ message: "Request body is required" });
     }
 
-    const { roomId } = req.params
-    const { roomNumber, totalSeats, roomType, vacantSeats } = req.body
+    const { roomId } = req.params;
+    const { roomNumber, totalSeats, roomType, vacantSeats } = req.body;
 
     // Validate required fields
     if (!roomNumber && !totalSeats && !roomType && vacantSeats === undefined) {
       return res.status(400).json({
-        message: "At least one field (roomNumber, totalSeats, roomType, or vacantSeats) is required"
-      })
+        message:
+          "At least one field (roomNumber, totalSeats, roomType, or vacantSeats) is required",
+      });
     }
 
     // Convert roomId to number
-    const roomIdNum = Number.parseInt(roomId)
+    const roomIdNum = Number.parseInt(roomId);
     if (isNaN(roomIdNum)) {
       return res.status(400).json({
-        message: "roomId must be a valid number"
-      })
+        message: "roomId must be a valid number",
+      });
     }
 
     // Check if room exists
@@ -246,117 +248,121 @@ export const updateRoom = async (req, res) => {
         hostel: true,
         allocations: {
           where: {
-            isActive: true
-          }
-        }
-      }
-    })
+            isActive: true,
+          },
+        },
+      },
+    });
 
     if (!existingRoom) {
-      return res.status(404).json({ message: "Room not found" })
+      return res.status(404).json({ message: "Room not found" });
     }
 
     // If user is a warden, check if they are assigned to this room's hostel
     if (req.user.role === "WARDEN") {
       const warden = await prisma.warden.findFirst({
-        where: { 
+        where: {
           userId: req.user.id,
           hostels: {
             some: {
-              hostelId: existingRoom.hostelId
-            }
-          }
+              hostelId: existingRoom.hostelId,
+            },
+          },
         },
-      })
+      });
 
       if (!warden) {
-        return res.status(403).json({ 
-          message: "Access denied. You can only update rooms in hostels you are assigned to." 
-        })
+        return res.status(403).json({
+          message:
+            "Access denied. You can only update rooms in hostels you are assigned to.",
+        });
       }
     }
 
     // Prepare update data
-    const updateData = {}
+    const updateData = {};
 
     if (roomNumber !== undefined) {
-      updateData.roomNumber = String(roomNumber)
+      updateData.roomNumber = String(roomNumber);
     }
 
     if (totalSeats !== undefined) {
-      const totalSeatsNum = Number.parseInt(totalSeats)
+      const totalSeatsNum = Number.parseInt(totalSeats);
       if (isNaN(totalSeatsNum) || totalSeatsNum <= 0) {
         return res.status(400).json({
-          message: "totalSeats must be a valid positive number"
-        })
+          message: "totalSeats must be a valid positive number",
+        });
       }
-      updateData.totalSeats = totalSeatsNum
+      updateData.totalSeats = totalSeatsNum;
     }
 
     if (roomType !== undefined) {
-      if (!['SINGLE', 'DOUBLE', 'TRIPLE'].includes(roomType)) {
+      if (!["SINGLE", "DOUBLE", "TRIPLE"].includes(roomType)) {
         return res.status(400).json({
-          message: "roomType must be one of: SINGLE, DOUBLE, TRIPLE"
-        })
+          message: "roomType must be one of: SINGLE, DOUBLE, TRIPLE",
+        });
       }
-      updateData.roomType = roomType
+      updateData.roomType = roomType;
     }
 
     // Handle vacantSeats logic
     if (vacantSeats !== undefined) {
-      const vacantSeatsNum = Number.parseInt(vacantSeats)
+      const vacantSeatsNum = Number.parseInt(vacantSeats);
       if (isNaN(vacantSeatsNum) || vacantSeatsNum < 0) {
         return res.status(400).json({
-          message: "vacantSeats must be a valid non-negative number"
-        })
+          message: "vacantSeats must be a valid non-negative number",
+        });
       }
-      updateData.vacantSeats = vacantSeatsNum
+      updateData.vacantSeats = vacantSeatsNum;
     }
 
     // Validate totalSeats and roomType consistency if both are being updated
     if (updateData.totalSeats && updateData.roomType) {
       const expectedSeats = {
-        'SINGLE': 1,
-        'DOUBLE': 2,
-        'TRIPLE': 3
-      }
+        SINGLE: 1,
+        DOUBLE: 2,
+        TRIPLE: 3,
+      };
 
       if (updateData.totalSeats !== expectedSeats[updateData.roomType]) {
         return res.status(400).json({
-          message: `Total seats must be ${expectedSeats[updateData.roomType]} for ${updateData.roomType} room type`
-        })
+          message: `Total seats must be ${
+            expectedSeats[updateData.roomType]
+          } for ${updateData.roomType} room type`,
+        });
       }
     }
 
     // Auto-adjust vacantSeats when totalSeats is changed
     if (updateData.totalSeats !== undefined) {
-      const currentOccupiedSeats = existingRoom.totalSeats - existingRoom.vacantSeats
-      const newTotalSeats = updateData.totalSeats
-      
+      const currentOccupiedSeats =
+        existingRoom.totalSeats - existingRoom.vacantSeats;
+      const newTotalSeats = updateData.totalSeats;
+
       // Calculate new vacant seats
-      const newVacantSeats = Math.max(0, newTotalSeats - currentOccupiedSeats)
-      
+      const newVacantSeats = Math.max(0, newTotalSeats - currentOccupiedSeats);
+
       // Check if the new total seats can accommodate current students
       if (currentOccupiedSeats > newTotalSeats) {
         return res.status(400).json({
           message: `Cannot reduce total seats to ${newTotalSeats}. There are currently ${currentOccupiedSeats} students allocated to this room.`,
           currentOccupiedSeats,
-          requestedTotalSeats: newTotalSeats
-        })
+          requestedTotalSeats: newTotalSeats,
+        });
       }
-      
-      updateData.vacantSeats = newVacantSeats
-      
+
+      updateData.vacantSeats = newVacantSeats;
+
       // If user also provided vacantSeats, validate it
       if (vacantSeats !== undefined) {
-        const userVacantSeats = Number.parseInt(vacantSeats)
+        const userVacantSeats = Number.parseInt(vacantSeats);
         if (userVacantSeats !== newVacantSeats) {
           return res.status(400).json({
             message: `Vacant seats will be automatically adjusted to ${newVacantSeats} based on current occupancy and new total seats. Cannot manually set to ${userVacantSeats}.`,
             calculatedVacantSeats: newVacantSeats,
             requestedVacantSeats: userVacantSeats,
-            currentOccupiedSeats
-          })
+            currentOccupiedSeats,
+          });
         }
       }
     }
@@ -367,12 +373,14 @@ export const updateRoom = async (req, res) => {
         where: {
           hostelId: existingRoom.hostelId,
           roomNumber: updateData.roomNumber,
-          id: { not: roomIdNum }
+          id: { not: roomIdNum },
         },
-      })
+      });
 
       if (duplicateRoom) {
-        return res.status(400).json({ message: "Room number already exists in this hostel" })
+        return res
+          .status(400)
+          .json({ message: "Room number already exists in this hostel" });
       }
     }
 
@@ -385,37 +393,38 @@ export const updateRoom = async (req, res) => {
           select: {
             id: true,
             name: true,
-            type: true
-          }
-        }
-      }
-    })
+            type: true,
+          },
+        },
+      },
+    });
 
     res.status(200).json({
       message: "Room updated successfully",
       room: updatedRoom,
       changes: {
         totalSeatsChanged: updateData.totalSeats !== undefined,
-        vacantSeatsAutoAdjusted: updateData.totalSeats !== undefined && vacantSeats === undefined
-      }
-    })
+        vacantSeatsAutoAdjusted:
+          updateData.totalSeats !== undefined && vacantSeats === undefined,
+      },
+    });
   } catch (error) {
-    console.error("Error updating room:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error updating room:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Delete room
 export const deleteRoom = async (req, res) => {
   try {
-    const { roomId } = req.params
+    const { roomId } = req.params;
 
     // Convert roomId to number
-    const roomIdNum = Number.parseInt(roomId)
+    const roomIdNum = Number.parseInt(roomId);
     if (isNaN(roomIdNum)) {
       return res.status(400).json({
-        message: "roomId must be a valid number"
-      })
+        message: "roomId must be a valid number",
+      });
     }
 
     // Check if room exists and get its details
@@ -425,86 +434,88 @@ export const deleteRoom = async (req, res) => {
         hostel: true,
         allocations: {
           where: {
-            isActive: true
+            isActive: true,
           },
           include: {
-            student: true
-          }
-        }
-      }
-    })
+            student: true,
+          },
+        },
+      },
+    });
 
     if (!room) {
-      return res.status(404).json({ message: "Room not found" })
+      return res.status(404).json({ message: "Room not found" });
     }
 
     // If user is a warden, check if they are assigned to this room's hostel
     if (req.user.role === "WARDEN") {
       const warden = await prisma.warden.findFirst({
-        where: { 
+        where: {
           userId: req.user.id,
           hostels: {
             some: {
-              hostelId: room.hostelId
-            }
-          }
+              hostelId: room.hostelId,
+            },
+          },
         },
-      })
+      });
 
       if (!warden) {
-        return res.status(403).json({ 
-          message: "Access denied. You can only delete rooms in hostels you are assigned to." 
-        })
+        return res.status(403).json({
+          message:
+            "Access denied. You can only delete rooms in hostels you are assigned to.",
+        });
       }
     }
 
     // Check if there are active student allocations to this room
     if (room.allocations && room.allocations.length > 0) {
       return res.status(400).json({
-        message: "Cannot delete room. There are students currently allocated to this room. Please deallocate all students first.",
+        message:
+          "Cannot delete room. There are students currently allocated to this room. Please deallocate all students first.",
         allocatedStudents: room.allocations.length,
-        students: room.allocations.map(allocation => ({
+        students: room.allocations.map((allocation) => ({
           id: allocation.student.id,
           fullName: allocation.student.fullName,
-          registrationNo: allocation.student.registrationNo
-        }))
-      })
+          registrationNo: allocation.student.registrationNo,
+        })),
+      });
     }
 
     // Delete room and update hostel room counts in a transaction
     await prisma.$transaction(async (tx) => {
       // Delete the room
       await tx.room.delete({
-        where: { id: roomIdNum }
-      })
+        where: { id: roomIdNum },
+      });
 
       // Update hostel room counts
       await tx.hostel.update({
         where: { id: room.hostelId },
         data: {
           totalRooms: {
-            decrement: 1
+            decrement: 1,
           },
           vacantRooms: {
-            decrement: 1
-          }
-        }
-      })
-    })
+            decrement: 1,
+          },
+        },
+      });
+    });
 
     res.status(200).json({
       message: "Room deleted successfully",
       deletedRoom: {
         id: room.id,
         roomNumber: room.roomNumber,
-        hostelName: room.hostel.name
-      }
-    })
+        hostelName: room.hostel.name,
+      },
+    });
   } catch (error) {
-    console.error("Error deleting room:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error deleting room:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Get all wardens with optional approval status filter
 export const getAllWardens = async (req, res) => {
@@ -514,7 +525,7 @@ export const getAllWardens = async (req, res) => {
     // Build where clause based on query parameters
     const whereClause = {};
     if (isApproved !== undefined) {
-      whereClause.isApproved = isApproved === 'true';
+      whereClause.isApproved = isApproved === "true";
     }
 
     const wardens = await prisma.warden.findMany({
@@ -541,9 +552,9 @@ export const getAllWardens = async (req, res) => {
     });
 
     // Transform the response to make it more frontend-friendly
-    const transformedWardens = wardens.map(warden => ({
+    const transformedWardens = wardens.map((warden) => ({
       ...warden,
-      hostels: warden.hostels.map(wh => wh.hostel),
+      hostels: warden.hostels.map((wh) => wh.hostel),
     }));
 
     res.status(200).json(transformedWardens);
@@ -579,11 +590,11 @@ export const getPendingWardens = async (req, res) => {
 export const approveWarden = async (req, res) => {
   try {
     if (!req.body) {
-      return res.status(400).json({ message: "Request body is required" })
+      return res.status(400).json({ message: "Request body is required" });
     }
 
-    const { wardenId } = req.params
-    const { hostelId } = req.body
+    const { wardenId } = req.params;
+    const { hostelId } = req.body;
 
     // Check if warden exists
     const warden = await prisma.warden.findUnique({
@@ -592,34 +603,34 @@ export const approveWarden = async (req, res) => {
         user: true,
         hostels: {
           include: {
-            hostel: true
-          }
-        }
+            hostel: true,
+          },
+        },
       },
-    })
+    });
 
     if (!warden) {
-      return res.status(404).json({ message: "Warden not found" })
+      return res.status(404).json({ message: "Warden not found" });
     }
 
     // Check if hostel exists
     const hostel = await prisma.hostel.findUnique({
       where: { id: Number.parseInt(hostelId) },
-    })
+    });
 
     if (!hostel) {
-      return res.status(404).json({ message: "Hostel not found" })
+      return res.status(404).json({ message: "Hostel not found" });
     }
 
     // Check if warden is already assigned to this hostel
     const existingAssignment = warden.hostels.find(
-      wh => wh.hostelId === Number.parseInt(hostelId)
-    )
+      (wh) => wh.hostelId === Number.parseInt(hostelId)
+    );
 
     if (existingAssignment) {
       return res.status(400).json({
-        message: "Warden is already assigned to this hostel"
-      })
+        message: "Warden is already assigned to this hostel",
+      });
     }
 
     // Update warden approval status and create hostel assignment in a transaction
@@ -638,29 +649,28 @@ export const approveWarden = async (req, res) => {
           hostelId: Number.parseInt(hostelId),
         },
         include: {
-          hostel: true
-        }
-      })
-    ])
-
+          hostel: true,
+        },
+      }),
+    ]);
 
     res.status(200).json({
       message: "Warden approved and assigned to hostel successfully",
       warden: {
         ...updatedWarden,
-        hostels: [...warden.hostels, wardenHostel]
-      }
-    })
+        hostels: [...warden.hostels, wardenHostel],
+      },
+    });
   } catch (error) {
-    console.error("Error approving warden:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error approving warden:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Reject warden
 export const rejectWarden = async (req, res) => {
   try {
-    const { wardenId } = req.params
+    const { wardenId } = req.params;
 
     // Check if warden exists
     const warden = await prisma.warden.findUnique({
@@ -668,10 +678,10 @@ export const rejectWarden = async (req, res) => {
       include: {
         user: true,
       },
-    })
+    });
 
     if (!warden) {
-      return res.status(404).json({ message: "Warden not found" })
+      return res.status(404).json({ message: "Warden not found" });
     }
 
     // Delete warden and user
@@ -682,22 +692,22 @@ export const rejectWarden = async (req, res) => {
       prisma.user.delete({
         where: { id: warden.userId },
       }),
-    ])
+    ]);
 
     res.status(200).json({
       message: "Warden rejected successfully",
-    })
+    });
   } catch (error) {
-    console.error("Error rejecting warden:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error rejecting warden:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Get all students
 export const getAllStudents = async (req, res) => {
   try {
     const { hostelId } = req.query;
-    console.log("hostelId",hostelId)
+    console.log("hostelId", hostelId);
     const students = await prisma.student.findMany({
       where: hostelId
         ? {
@@ -705,10 +715,10 @@ export const getAllStudents = async (req, res) => {
               some: {
                 isActive: true,
                 room: {
-                  hostelId: Number(hostelId)
-                }
-              }
-            }
+                  hostelId: Number(hostelId),
+                },
+              },
+            },
           }
         : undefined,
       include: {
@@ -717,9 +727,9 @@ export const getAllStudents = async (req, res) => {
             isActive: true,
             ...(hostelId && {
               room: {
-                hostelId: Number(hostelId)
-              }
-            })
+                hostelId: Number(hostelId),
+              },
+            }),
           },
           include: {
             room: {
@@ -728,12 +738,12 @@ export const getAllStudents = async (req, res) => {
                   select: {
                     id: true,
                     name: true,
-                    type: true
-                  }
-                }
-              }
-            }
-          }
+                    type: true,
+                  },
+                },
+              },
+            },
+          },
         },
         user: {
           select: {
@@ -741,49 +751,49 @@ export const getAllStudents = async (req, res) => {
             email: true,
             role: true,
             createdAt: true,
-            updatedAt: true
-          }
-        }
+            updatedAt: true,
+          },
+        },
       },
       orderBy: {
-        createdAt: 'desc'
-      }
-    })
+        createdAt: "desc",
+      },
+    });
 
     // Transform the response to make it more frontend-friendly
-    const transformedStudents = students.map(student => ({
+    const transformedStudents = students.map((student) => ({
       ...student,
       currentRoom: student.roomAllocations[0] || null,
-      roomAllocations: undefined // Remove the array since we only need current room
-    }))
+      roomAllocations: undefined, // Remove the array since we only need current room
+    }));
 
-    res.status(200).json(transformedStudents)
+    res.status(200).json(transformedStudents);
+    
   } catch (error) {
-    console.error("Error fetching students:", error)
-    if (error.code === 'P2025') {
-      return res.status(404).json({ message: "No students found" })
+    console.error("Error fetching students:", error);
+    if (error.code === "P2025") {
+      return res.status(404).json({ message: "No students found" });
     }
-    res.status(500).json({ message: "Internal server error" })
+    res.status(500).json({ message: "Internal server error" });
   }
-}
-
+};
 
 // Create admin
 export const createAdmin = async (req, res) => {
   try {
-    const { email, password, fullName } = req.body
+    const { email, password, fullName } = req.body;
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
-    })
+    });
 
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists" })
+      return res.status(400).json({ message: "User already exists" });
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user and admin in a transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -794,7 +804,7 @@ export const createAdmin = async (req, res) => {
           password: hashedPassword,
           role: "ADMIN",
         },
-      })
+      });
 
       // Create admin profile
       const admin = await tx.admin.create({
@@ -802,10 +812,10 @@ export const createAdmin = async (req, res) => {
           userId: user.id,
           fullName,
         },
-      })
+      });
 
-      return { user, admin }
-    })
+      return { user, admin };
+    });
 
     // Send welcome email
     try {
@@ -820,7 +830,7 @@ export const createAdmin = async (req, res) => {
     `,
       });
     } catch (emailError) {
-      console.error("Error sending welcome email:", emailError)
+      console.error("Error sending welcome email:", emailError);
       // Continue with the response even if email fails
     }
 
@@ -829,27 +839,27 @@ export const createAdmin = async (req, res) => {
       admin: {
         id: result.admin.id,
         fullName: result.admin.fullName,
-        email: result.user.email
-      }
-    })
+        email: result.user.email,
+      },
+    });
   } catch (error) {
-    console.error("Error creating admin:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error creating admin:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Create payment for student
 export const createPayment = async (req, res) => {
   try {
-    const { studentId, amount, description, dueDate } = req.body
+    const { studentId, amount, description, dueDate } = req.body;
 
     // Check if student exists
     const student = await prisma.student.findUnique({
       where: { id: Number.parseInt(studentId) },
-    })
+    });
 
     if (!student) {
-      return res.status(404).json({ message: "Student not found" })
+      return res.status(404).json({ message: "Student not found" });
     }
 
     // Create payment
@@ -860,22 +870,22 @@ export const createPayment = async (req, res) => {
         description,
         dueDate: new Date(dueDate),
       },
-    })
+    });
 
     res.status(201).json({
       message: "Payment created successfully",
       payment,
-    })
+    });
   } catch (error) {
-    console.error("Error creating payment:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error creating payment:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Delete hostel
 export const deleteHostel = async (req, res) => {
   try {
-    const { hostelId } = req.params
+    const { hostelId } = req.params;
 
     // Check if hostel exists
     const hostel = await prisma.hostel.findUnique({
@@ -885,34 +895,37 @@ export const deleteHostel = async (req, res) => {
           include: {
             allocations: {
               where: {
-                isActive: true
-              }
-            }
-          }
+                isActive: true,
+              },
+            },
+          },
         },
-        wardens: true
-      }
-    })
+        wardens: true,
+      },
+    });
 
     if (!hostel) {
-      return res.status(404).json({ message: "Hostel not found" })
+      return res.status(404).json({ message: "Hostel not found" });
     }
 
     // Check if hostel has any active students
-    const hasActiveStudents = hostel.rooms.some(room => room.allocations.length > 0)
+    const hasActiveStudents = hostel.rooms.some(
+      (room) => room.allocations.length > 0
+    );
     if (hasActiveStudents) {
       return res.status(400).json({
         message: "Cannot delete hostel with active students",
-        details: "Please ensure all students are removed from the hostel before deletion"
-      })
+        details:
+          "Please ensure all students are removed from the hostel before deletion",
+      });
     }
 
     // Check if hostel has any wardens
     if (hostel.wardens.length > 0) {
       return res.status(400).json({
         message: "Cannot delete hostel with assigned wardens",
-        details: "Please remove all wardens from the hostel before deletion"
-      })
+        details: "Please remove all wardens from the hostel before deletion",
+      });
     }
 
     // Delete hostel and its rooms in a transaction
@@ -921,59 +934,61 @@ export const deleteHostel = async (req, res) => {
       prisma.roomAllocation.deleteMany({
         where: {
           roomId: {
-            in: hostel.rooms.map(room => room.id)
-          }
-        }
+            in: hostel.rooms.map((room) => room.id),
+          },
+        },
       }),
       // Delete all rooms in the hostel
       prisma.room.deleteMany({
-        where: { hostelId: Number.parseInt(hostelId) }
+        where: { hostelId: Number.parseInt(hostelId) },
       }),
       // Delete the hostel
       prisma.hostel.delete({
-        where: { id: Number.parseInt(hostelId) }
-      })
-    ])
+        where: { id: Number.parseInt(hostelId) },
+      }),
+    ]);
 
     res.status(200).json({
-      message: "Hostel deleted successfully"
-    })
+      message: "Hostel deleted successfully",
+    });
   } catch (error) {
-    console.error("Error deleting hostel:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error deleting hostel:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Update hostel details
 export const updateHostel = async (req, res) => {
   try {
-    const { hostelId } = req.params
-    const { name, type } = req.body
+    const { hostelId } = req.params;
+    const { name, type } = req.body;
 
     // Validate required fields
     if (!name || !type) {
       return res.status(400).json({
         message: "Name and type are required fields",
-        received: { name, type }
-      })
+        received: { name, type },
+      });
     }
 
     // Check if hostel exists
     const existingHostel = await prisma.hostel.findUnique({
-      where: { id: Number.parseInt(hostelId) }
-    })
+      where: { id: Number.parseInt(hostelId) },
+    });
 
     if (!existingHostel) {
-      return res.status(404).json({ message: "Hostel not found" })
+      return res.status(404).json({ message: "Hostel not found" });
     }
 
     // Check if new name conflicts with another hostel
     if (name !== existingHostel.name) {
       const nameConflict = await prisma.hostel.findUnique({
-        where: { name }
-      })
+        where: { name },
+      });
       if (nameConflict) {
-        return res.status(400).json({ message: "A hostel with this name already exists" })
+        return res
+          .status(400)
+          .json({ message: "A hostel with this name already exists" });
       }
     }
 
@@ -982,42 +997,44 @@ export const updateHostel = async (req, res) => {
       where: { id: Number.parseInt(hostelId) },
       data: {
         name,
-        type
-      }
-    })
+        type,
+      },
+    });
 
     res.status(200).json({
       message: "Hostel updated successfully",
-      hostel: updatedHostel
-    })
+      hostel: updatedHostel,
+    });
   } catch (error) {
-    console.error("Error updating hostel:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error updating hostel:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Remove warden from hostel
 export const removeWardenFromHostel = async (req, res) => {
   try {
-    const { hostelId, wardenId } = req.params
+    const { hostelId, wardenId } = req.params;
 
     // Check if hostel exists
     const hostel = await prisma.hostel.findUnique({
       where: { id: Number.parseInt(hostelId) },
       include: {
         wardens: {
-          where: { wardenId: Number.parseInt(wardenId) }
-        }
-      }
-    })
+          where: { wardenId: Number.parseInt(wardenId) },
+        },
+      },
+    });
 
     if (!hostel) {
-      return res.status(404).json({ message: "Hostel not found" })
+      return res.status(404).json({ message: "Hostel not found" });
     }
 
     // Check if warden is assigned to this hostel
     if (hostel.wardens.length === 0) {
-      return res.status(400).json({ message: "Warden is not assigned to this hostel" })
+      return res
+        .status(400)
+        .json({ message: "Warden is not assigned to this hostel" });
     }
 
     // Remove warden from hostel
@@ -1025,24 +1042,24 @@ export const removeWardenFromHostel = async (req, res) => {
       where: {
         wardenId_hostelId: {
           wardenId: Number.parseInt(wardenId),
-          hostelId: Number.parseInt(hostelId)
-        }
-      }
-    })
+          hostelId: Number.parseInt(hostelId),
+        },
+      },
+    });
 
     res.status(200).json({
-      message: "Warden removed from hostel successfully"
-    })
+      message: "Warden removed from hostel successfully",
+    });
   } catch (error) {
-    console.error("Error removing warden from hostel:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error removing warden from hostel:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Remove student from hostel
 export const removeStudentFromHostel = async (req, res) => {
   try {
-    const { studentId } = req.params
+    const { studentId } = req.params;
 
     // Check if student exists and has an active room allocation
     const student = await prisma.student.findUnique({
@@ -1051,18 +1068,20 @@ export const removeStudentFromHostel = async (req, res) => {
         roomAllocations: {
           where: { isActive: true },
           include: {
-            room: true
-          }
-        }
-      }
-    })
+            room: true,
+          },
+        },
+      },
+    });
 
     if (!student) {
-      return res.status(404).json({ message: "Student not found" })
+      return res.status(404).json({ message: "Student not found" });
     }
 
     if (student.roomAllocations.length === 0) {
-      return res.status(400).json({ message: "Student is not allocated to any hostel" })
+      return res
+        .status(400)
+        .json({ message: "Student is not allocated to any hostel" });
     }
 
     // Update room allocation and room vacancy in a transaction
@@ -1070,28 +1089,28 @@ export const removeStudentFromHostel = async (req, res) => {
       // Update room allocation
       await tx.roomAllocation.update({
         where: { id: student.roomAllocations[0].id },
-        data: { isActive: false }
-      })
+        data: { isActive: false },
+      });
 
       // Update room vacancy
       await tx.room.update({
         where: { id: student.roomAllocations[0].room.id },
         data: {
           vacantSeats: {
-            increment: 1
-          }
-        }
-      })
-    })
+            increment: 1,
+          },
+        },
+      });
+    });
 
     res.status(200).json({
-      message: "Student removed from hostel successfully"
-    })
+      message: "Student removed from hostel successfully",
+    });
   } catch (error) {
-    console.error("Error removing student from hostel:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error removing student from hostel:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Bulk allocate hostels to students based on distance
 export const allocateHostelsBulk = async (req, res) => {
@@ -1101,37 +1120,37 @@ export const allocateHostelsBulk = async (req, res) => {
       where: {
         roomAllocations: {
           none: {
-            isActive: true
-          }
-        }
+            isActive: true,
+          },
+        },
       },
       orderBy: {
-        distanceFromCollege: 'desc' // Sort by distance in descending order
+        distanceFromCollege: "desc", // Sort by distance in descending order
       },
       include: {
         user: {
           select: {
-            email: true
-          }
-        }
-      }
+            email: true,
+          },
+        },
+      },
     });
 
     // Get all rooms with their current allocations
     const availableRooms = await prisma.room.findMany({
       where: {
         vacantSeats: {
-          gt: 0
-        }
+          gt: 0,
+        },
       },
       include: {
         hostel: true,
         allocations: {
           where: {
-            isActive: true
-          }
-        }
-      }
+            isActive: true,
+          },
+        },
+      },
     });
 
     const allocationResults = [];
@@ -1158,16 +1177,16 @@ export const allocateHostelsBulk = async (req, res) => {
                   roomId: room.id,
                   semester: student.semester,
                   year: student.year,
-                  isActive: true
-                }
+                  isActive: true,
+                },
               });
 
               // Update room's vacant seats
               await tx.room.update({
                 where: { id: room.id },
                 data: {
-                  vacantSeats: actualVacantSeats - 1
-                }
+                  vacantSeats: actualVacantSeats - 1,
+                },
               });
             });
 
@@ -1176,7 +1195,7 @@ export const allocateHostelsBulk = async (req, res) => {
               studentName: student.fullName,
               roomId: room.id,
               roomNumber: room.roomNumber,
-              hostelName: room.hostel.name
+              hostelName: room.hostel.name,
             });
 
             allocated = true;
@@ -1185,7 +1204,7 @@ export const allocateHostelsBulk = async (req, res) => {
             errors.push({
               studentId: student.id,
               studentName: student.fullName,
-              error: "Failed to allocate room"
+              error: "Failed to allocate room",
             });
           }
         }
@@ -1195,7 +1214,7 @@ export const allocateHostelsBulk = async (req, res) => {
         errors.push({
           studentId: student.id,
           studentName: student.fullName,
-          error: "No rooms available"
+          error: "No rooms available",
         });
       }
     }
@@ -1206,9 +1225,8 @@ export const allocateHostelsBulk = async (req, res) => {
       allocated: allocationResults.length,
       failed: errors.length,
       allocations: allocationResults,
-      errors: errors
+      errors: errors,
     });
-
   } catch (error) {
     console.error("Error in bulk hostel allocation:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -1218,7 +1236,7 @@ export const allocateHostelsBulk = async (req, res) => {
 // Deallocate student's room
 export const deallocateStudentRoom = async (req, res) => {
   try {
-    const { studentId } = req.params
+    const { studentId } = req.params;
 
     // Check if student exists and has an active room allocation
     const student = await prisma.student.findUnique({
@@ -1227,18 +1245,20 @@ export const deallocateStudentRoom = async (req, res) => {
         roomAllocations: {
           where: { isActive: true },
           include: {
-            room: true
-          }
-        }
-      }
-    })
+            room: true,
+          },
+        },
+      },
+    });
 
     if (!student) {
-      return res.status(404).json({ message: "Student not found" })
+      return res.status(404).json({ message: "Student not found" });
     }
 
     if (student.roomAllocations.length === 0) {
-      return res.status(400).json({ message: "Student is not allocated to any room" })
+      return res
+        .status(400)
+        .json({ message: "Student is not allocated to any room" });
     }
 
     // Update room allocation and room vacancy in a transaction
@@ -1248,34 +1268,34 @@ export const deallocateStudentRoom = async (req, res) => {
         where: { id: student.roomAllocations[0].id },
         data: {
           isActive: false,
-          deallocatedAt: new Date()
-        }
-      })
+          deallocatedAt: new Date(),
+        },
+      });
 
       // Update room vacancy
       await tx.room.update({
         where: { id: student.roomAllocations[0].room.id },
         data: {
           vacantSeats: {
-            increment: 1
-          }
-        }
-      })
-    })
+            increment: 1,
+          },
+        },
+      });
+    });
 
     res.status(200).json({
-      message: "Student's room deallocated successfully"
-    })
+      message: "Student's room deallocated successfully",
+    });
   } catch (error) {
-    console.error("Error deallocating student's room:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error deallocating student's room:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Delete warden
 export const deleteWarden = async (req, res) => {
   try {
-    const { wardenId } = req.params
+    const { wardenId } = req.params;
 
     // Check if warden exists and get their details
     const warden = await prisma.warden.findUnique({
@@ -1284,31 +1304,31 @@ export const deleteWarden = async (req, res) => {
         user: true,
         hostels: {
           include: {
-            hostel: true
-          }
-        }
+            hostel: true,
+          },
+        },
       },
-    })
+    });
 
     if (!warden) {
-      return res.status(404).json({ message: "Warden not found" })
+      return res.status(404).json({ message: "Warden not found" });
     }
 
     // Delete warden and all related data in a transaction
     await prisma.$transaction([
       // Delete all warden-hostel relationships
       prisma.wardenHostel.deleteMany({
-        where: { wardenId: Number.parseInt(wardenId) }
+        where: { wardenId: Number.parseInt(wardenId) },
       }),
       // Delete the warden
       prisma.warden.delete({
-        where: { id: Number.parseInt(wardenId) }
+        where: { id: Number.parseInt(wardenId) },
       }),
       // Delete the associated user
       prisma.user.delete({
-        where: { id: warden.userId }
-      })
-    ])
+        where: { id: warden.userId },
+      }),
+    ]);
 
     // Send email notification
     await sendEMail({
@@ -1322,17 +1342,17 @@ export const deleteWarden = async (req, res) => {
 
     res.status(200).json({
       message: "Warden deleted successfully",
-    })
+    });
   } catch (error) {
-    console.error("Error deleting warden:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error deleting warden:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Delete student
 export const deleteStudent = async (req, res) => {
   try {
-    const { studentId } = req.params
+    const { studentId } = req.params;
 
     // Check if student exists and get their details
     const student = await prisma.student.findUnique({
@@ -1342,14 +1362,14 @@ export const deleteStudent = async (req, res) => {
         roomAllocations: {
           where: { isActive: true },
           include: {
-            room: true
-          }
-        }
+            room: true,
+          },
+        },
       },
-    })
+    });
 
     if (!student) {
-      return res.status(404).json({ message: "Student not found" })
+      return res.status(404).json({ message: "Student not found" });
     }
 
     // Delete student and all related data in a transaction
@@ -1360,27 +1380,27 @@ export const deleteStudent = async (req, res) => {
           where: { id: student.roomAllocations[0].roomId },
           data: {
             vacantSeats: {
-              increment: 1
-            }
-          }
-        })
+              increment: 1,
+            },
+          },
+        });
       }
 
       // Delete all room allocations
       await tx.roomAllocation.deleteMany({
-        where: { studentId: Number.parseInt(studentId) }
-      })
+        where: { studentId: Number.parseInt(studentId) },
+      });
 
       // Delete the student
       await tx.student.delete({
-        where: { id: Number.parseInt(studentId) }
-      })
+        where: { id: Number.parseInt(studentId) },
+      });
 
       // Delete the associated user
       await tx.user.delete({
-        where: { id: student.userId }
-      })
-    })
+        where: { id: student.userId },
+      });
+    });
 
     // Send email notification
     await sendEMail({
@@ -1394,15 +1414,15 @@ export const deleteStudent = async (req, res) => {
 
     res.status(200).json({
       message: "Student deleted successfully",
-    })
+    });
   } catch (error) {
-    console.error("Error deleting student:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error deleting student:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 export const getStudent = async (req, res) => {
   try {
-    const { studentId } = req.params
+    const { studentId } = req.params;
 
     // Check if student exists and get their details
     const student = await prisma.student.findUnique({
@@ -1410,50 +1430,121 @@ export const getStudent = async (req, res) => {
       include: {
         user: true,
         roomAllocations: {
-
           include: {
             room: {
               include: {
                 hostel: true,
-              }
+              },
             },
           },
-
         },
-
-      }
-    })
+      },
+    });
 
     if (!student) {
-      return res.status(404).json({ message: "Student not found" })
+      return res.status(404).json({ message: "Student not found" });
     }
 
     // Delete student and all related data in a transaction
-
 
     // Send email notification
 
     res.status(200).json({
       message: "Student date fetched successfully",
-      data: student
-
-    })
+      data: student,
+    });
   } catch (error) {
-    console.error("Error deleting student:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error deleting student:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
+export const updateStudent = async (req, res) => {
+  const {studentId} = req.params;
+  console.log('studentId: ', studentId);
+  const {
+    fullName,
+    fatherName,
+    gender,
+    department,
+    rank,
+    registrationNo,
+    rollNo,
+    year,
+    semester,
+    aadharNo,
+    mobileNo,
+    address,
+    pinCode,
+    distanceFromCollege,
+  } = req.body;
+
+  // ✅ Validate required fields
+  if (
+    !fullName ||
+    !fatherName ||
+    !gender ||
+    !department ||
+    rank === undefined ||
+    !registrationNo ||
+    !rollNo ||
+    year === undefined ||
+    semester === undefined ||
+    !aadharNo ||
+    !mobileNo ||
+    !address ||
+    !pinCode ||
+    distanceFromCollege === undefined
+  ) {
+    return res.status(400).json({
+      message: "All required fields must be provided",
+    });
+  }
+
+  try {
+    const student = await prisma.student.update({
+      where: { id: Number.parseInt(studentId) },
+      data: {
+        fullName,
+        fatherName,
+        gender,
+        department,
+        rank,
+        registrationNo,
+        rollNo,
+        year,
+        semester,
+        aadharNo,
+        mobileNo,
+        address,
+        pinCode,
+        distanceFromCollege
+      },
+    });
+
+    return res
+      .status(200)
+      .json({ message: "Student updated successfully", student });
+  } catch (error) {
+    if (error.code === "P2002") {
+      return res.status(409).json({
+        message: `Unique constraint failed on field: ${error.meta?.target}`,
+      });
+    }
+    console.error(error);
+    return res.status(500).json({ message: "Something went wrong", error });
+  }
+};
 // Allocate room for a student
 export const allocateRoom = async (req, res) => {
   try {
-    const { studentId, hostelId, roomId } = req.body
+    const { studentId, hostelId, roomId } = req.body;
 
     // Validate required fields
     if (!studentId || !hostelId || !roomId) {
       return res.status(400).json({
-        message: "studentId, hostelId, and roomId are required fields"
-      })
+        message: "studentId, hostelId, and roomId are required fields",
+      });
     }
 
     // Check if student exists
@@ -1461,20 +1552,20 @@ export const allocateRoom = async (req, res) => {
       where: { id: Number.parseInt(studentId) },
       include: {
         roomAllocations: {
-          where: { isActive: true }
-        }
-      }
-    })
+          where: { isActive: true },
+        },
+      },
+    });
 
     if (!student) {
-      return res.status(404).json({ message: "Student not found" })
+      return res.status(404).json({ message: "Student not found" });
     }
 
     // Check if student already has an active room allocation
     if (student.roomAllocations.length > 0) {
       return res.status(400).json({
-        message: "Student already has an active room allocation"
-      })
+        message: "Student already has an active room allocation",
+      });
     }
 
     // Check if room exists and belongs to the specified hostel
@@ -1482,14 +1573,14 @@ export const allocateRoom = async (req, res) => {
       where: {
         id: Number.parseInt(roomId),
         hostelId: Number.parseInt(hostelId),
-        vacantSeats: { gt: 0 }
-      }
-    })
+        vacantSeats: { gt: 0 },
+      },
+    });
 
     if (!room) {
       return res.status(404).json({
-        message: "Room not found or no vacant seats available"
-      })
+        message: "Room not found or no vacant seats available",
+      });
     }
 
     // Create room allocation and update room vacancy in a transaction
@@ -1501,19 +1592,19 @@ export const allocateRoom = async (req, res) => {
           roomId: Number.parseInt(roomId),
           semester: student.semester,
           year: student.year,
-          isActive: true
-        }
+          isActive: true,
+        },
       }),
       // Update room vacancy
       prisma.room.update({
         where: { id: Number.parseInt(roomId) },
         data: {
           vacantSeats: {
-            decrement: 1
-          }
-        }
-      })
-    ])
+            decrement: 1,
+          },
+        },
+      }),
+    ]);
 
     // Only create payment if allocation was successful
     if (allocation) {
@@ -1524,17 +1615,16 @@ export const allocateRoom = async (req, res) => {
           description: `Hostel fee for semester ${student.semester}, year ${student.year}`,
           dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // 15 days from now
           semester: student.semester,
-          year: student.year
-        }
-      })
+          year: student.year,
+        },
+      });
 
       // Fetch student user email
       const user = await prisma.user.findUnique({
         where: { id: student.userId },
-        
-      })
+      });
 
-      console.log("user",user)
+      console.log("user", user);
       // Send email to student
       try {
         await sendEMail({
@@ -1543,7 +1633,9 @@ export const allocateRoom = async (req, res) => {
           html: `<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
             <h2 style='color: #333;'>Hostel Payment Created</h2>
             <p>Hello ${user.fullName || "Student"},</p>
-            <p>Your hostel payment has been created for semester ${student.semester}, year ${student.year}.</p>
+            <p>Your hostel payment has been created for semester ${
+              student.semester
+            }, year ${student.year}.</p>
             <ul>
               <li><strong>Amount:</strong> ₹1500</li>
               <li><strong>Due Date:</strong> ${payment.dueDate.toLocaleDateString()}</li>
@@ -1551,61 +1643,74 @@ export const allocateRoom = async (req, res) => {
             </ul>
             <p>Please pay before the due date to avoid any penalties.</p>
             <p>Best regards,<br>Hostel Management Team</p>
-          </div>`
-        })
+          </div>`,
+        });
       } catch (emailError) {
-        console.error("Error sending payment email to student:", emailError)
+        console.error("Error sending payment email to student:", emailError);
         // Continue even if email fails
       }
 
       return res.status(201).json({
         message: "Room allocated successfully and payment created",
         allocation,
-        payment
-      })
+        payment,
+      });
     } else {
-      return res.status(500).json({ message: "Room allocation failed, payment not created" })
+      return res
+        .status(500)
+        .json({ message: "Room allocation failed, payment not created" });
     }
   } catch (error) {
-    console.error("Error allocating room:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error allocating room:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Create warden
 export const createWarden = async (req, res) => {
   try {
-    const { 
-      email, 
-      fullName, 
-      fatherName, 
-      mobileNo, 
-      aadharNo, 
-      address, 
-      zipCode 
-    } = req.body
+    const {
+      email,
+      fullName,
+      fatherName,
+      mobileNo,
+      aadharNo,
+      address,
+      zipCode,
+    } = req.body;
 
     // Validate required fields
-    if (!email || !fullName || !fatherName || !mobileNo || !aadharNo || !address || !zipCode) {
+    if (
+      !email ||
+      !fullName ||
+      !fatherName ||
+      !mobileNo ||
+      !aadharNo ||
+      !address ||
+      !zipCode
+    ) {
       return res.status(400).json({
-        message: "All fields are required: email, fullName, fatherName, mobileNo, aadharNo, address, zipCode"
-      })
+        message:
+          "All fields are required: email, fullName, fatherName, mobileNo, aadharNo, address, zipCode",
+      });
     }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
-    })
+    });
 
     if (existingUser) {
-      return res.status(400).json({ message: "User with this email already exists" })
+      return res
+        .status(400)
+        .json({ message: "User with this email already exists" });
     }
 
     // Generate random password
-    const randomPassword = generateRandomPassword()
+    const randomPassword = generateRandomPassword();
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(randomPassword, 10)
+    const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
     // Create user and warden in a transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -1616,7 +1721,7 @@ export const createWarden = async (req, res) => {
           password: hashedPassword,
           role: "WARDEN",
         },
-      })
+      });
 
       // Create warden profile
       const warden = await tx.warden.create({
@@ -1630,10 +1735,10 @@ export const createWarden = async (req, res) => {
           zipCode,
           isApproved: true, // Auto-approve when created by admin
         },
-      })
+      });
 
-      return { user, warden }
-    })
+      return { user, warden };
+    });
 
     // Send welcome email with credentials
     try {
@@ -1658,7 +1763,7 @@ export const createWarden = async (req, res) => {
         `,
       });
     } catch (emailError) {
-      console.error("Error sending welcome email:", emailError)
+      console.error("Error sending welcome email:", emailError);
       // Continue with the response even if email fails
     }
 
@@ -1669,46 +1774,54 @@ export const createWarden = async (req, res) => {
         fullName: result.warden.fullName,
         email: result.user.email,
         isApproved: result.warden.isApproved,
-        password:randomPassword
-      }
-    })
+        password: randomPassword,
+      },
+    });
   } catch (error) {
-    console.error("Error creating warden:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error creating warden:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Update warden
 export const updateWarden = async (req, res) => {
   try {
-    const { wardenId } = req.params
-    const { 
-      fullName, 
-      fatherName, 
-      mobileNo, 
-      aadharNo, 
-      address, 
+    const { wardenId } = req.params;
+    const {
+      fullName,
+      fatherName,
+      mobileNo,
+      aadharNo,
+      address,
       zipCode,
-      isApproved 
-    } = req.body
+      isApproved,
+    } = req.body;
 
     // Validate required fields
-    if (!fullName || !fatherName || !mobileNo || !aadharNo || !address || !zipCode) {
+    if (
+      !fullName ||
+      !fatherName ||
+      !mobileNo ||
+      !aadharNo ||
+      !address ||
+      !zipCode
+    ) {
       return res.status(400).json({
-        message: "All fields are required: fullName, fatherName, mobileNo, aadharNo, address, zipCode"
-      })
+        message:
+          "All fields are required: fullName, fatherName, mobileNo, aadharNo, address, zipCode",
+      });
     }
 
     // Check if warden exists
     const existingWarden = await prisma.warden.findUnique({
       where: { id: Number.parseInt(wardenId) },
       include: {
-        user: true
-      }
-    })
+        user: true,
+      },
+    });
 
     if (!existingWarden) {
-      return res.status(404).json({ message: "Warden not found" })
+      return res.status(404).json({ message: "Warden not found" });
     }
 
     // Update warden profile
@@ -1721,16 +1834,17 @@ export const updateWarden = async (req, res) => {
         aadharNo,
         address,
         zipCode,
-        isApproved: isApproved !== undefined ? isApproved : existingWarden.isApproved,
+        isApproved:
+          isApproved !== undefined ? isApproved : existingWarden.isApproved,
       },
       include: {
         user: {
           select: {
-            email: true
-          }
-        }
-      }
-    })
+            email: true,
+          },
+        },
+      },
+    });
 
     res.status(200).json({
       message: "Warden updated successfully",
@@ -1743,27 +1857,27 @@ export const updateWarden = async (req, res) => {
         address: updatedWarden.address,
         zipCode: updatedWarden.zipCode,
         isApproved: updatedWarden.isApproved,
-        email: updatedWarden.user.email
-      }
-    })
+        email: updatedWarden.user.email,
+      },
+    });
   } catch (error) {
-    console.error("Error updating warden:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error updating warden:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Get single warden by ID
 export const getWarden = async (req, res) => {
   try {
-    const { wardenId } = req.params
+    const { wardenId } = req.params;
 
     const warden = await prisma.warden.findUnique({
       where: { id: Number.parseInt(wardenId) },
       include: {
         user: {
           select: {
-            email: true
-          }
+            email: true,
+          },
         },
         hostels: {
           include: {
@@ -1771,16 +1885,16 @@ export const getWarden = async (req, res) => {
               select: {
                 id: true,
                 name: true,
-                type: true
-              }
-            }
-          }
-        }
-      }
-    })
+                type: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
     if (!warden) {
-      return res.status(404).json({ message: "Warden not found" })
+      return res.status(404).json({ message: "Warden not found" });
     }
 
     res.status(200).json({
@@ -1795,16 +1909,16 @@ export const getWarden = async (req, res) => {
         zipCode: warden.zipCode,
         isApproved: warden.isApproved,
         email: warden.user.email,
-        hostels: warden.hostels.map(wh => wh.hostel),
+        hostels: warden.hostels.map((wh) => wh.hostel),
         createdAt: warden.createdAt,
-        updatedAt: warden.updatedAt
-      }
-    })
+        updatedAt: warden.updatedAt,
+      },
+    });
   } catch (error) {
-    console.error("Error fetching warden:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error fetching warden:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Get all admins
 export const getAllAdmins = async (req, res) => {
@@ -1812,8 +1926,8 @@ export const getAllAdmins = async (req, res) => {
     const admins = await prisma.admin.findMany({
       where: {
         userId: {
-          not: req.user.id // Filter out current logged-in admin
-        }
+          not: req.user.id, // Filter out current logged-in admin
+        },
       },
       include: {
         user: {
@@ -1822,29 +1936,29 @@ export const getAllAdmins = async (req, res) => {
             email: true,
             role: true,
             createdAt: true,
-            updatedAt: true
-          }
-        }
+            updatedAt: true,
+          },
+        },
       },
       orderBy: {
-        createdAt: 'desc'
-      }
-    })
+        createdAt: "desc",
+      },
+    });
 
     res.status(200).json({
       message: "Admins fetched successfully",
-      data: admins
-    })
+      data: admins,
+    });
   } catch (error) {
-    console.error("Error fetching admins:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error fetching admins:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Get specific admin by ID
 export const getAdmin = async (req, res) => {
   try {
-    const { adminId } = req.params
+    const { adminId } = req.params;
 
     const admin = await prisma.admin.findUnique({
       where: { id: Number.parseInt(adminId) },
@@ -1855,60 +1969,60 @@ export const getAdmin = async (req, res) => {
             email: true,
             role: true,
             createdAt: true,
-            updatedAt: true
-          }
-        }
-      }
-    })
+            updatedAt: true,
+          },
+        },
+      },
+    });
 
     if (!admin) {
-      return res.status(404).json({ message: "Admin not found" })
+      return res.status(404).json({ message: "Admin not found" });
     }
 
     res.status(200).json({
       message: "Admin fetched successfully",
-      data: admin
-    })
+      data: admin,
+    });
   } catch (error) {
-    console.error("Error fetching admin:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error fetching admin:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Update admin details
 export const updateAdmin = async (req, res) => {
   try {
-    const { adminId } = req.params
-    const { fullName, email } = req.body
+    const { adminId } = req.params;
+    const { fullName, email } = req.body;
 
     // Validate required fields
     if (!fullName || !email) {
       return res.status(400).json({
         message: "fullName and email are required fields",
-        received: { fullName, email }
-      })
+        received: { fullName, email },
+      });
     }
 
     // Check if admin exists
     const existingAdmin = await prisma.admin.findUnique({
       where: { id: Number.parseInt(adminId) },
       include: {
-        user: true
-      }
-    })
+        user: true,
+      },
+    });
 
     if (!existingAdmin) {
-      return res.status(404).json({ message: "Admin not found" })
+      return res.status(404).json({ message: "Admin not found" });
     }
 
     // Check if email is being changed and if it conflicts with another user
     if (email !== existingAdmin.user.email) {
       const emailExists = await prisma.user.findUnique({
-        where: { email }
-      })
+        where: { email },
+      });
 
       if (emailExists) {
-        return res.status(400).json({ message: "Email already exists" })
+        return res.status(400).json({ message: "Email already exists" });
       }
     }
 
@@ -1917,8 +2031,8 @@ export const updateAdmin = async (req, res) => {
       // Update user email
       const updatedUser = await tx.user.update({
         where: { id: existingAdmin.userId },
-        data: { email }
-      })
+        data: { email },
+      });
 
       // Update admin details
       const updatedAdmin = await tx.admin.update({
@@ -1931,76 +2045,76 @@ export const updateAdmin = async (req, res) => {
               email: true,
               role: true,
               createdAt: true,
-              updatedAt: true
-            }
-          }
-        }
-      })
+              updatedAt: true,
+            },
+          },
+        },
+      });
 
-      return updatedAdmin
-    })
+      return updatedAdmin;
+    });
 
     res.status(200).json({
       message: "Admin updated successfully",
-      data: result
-    })
+      data: result,
+    });
   } catch (error) {
-    console.error("Error updating admin:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error updating admin:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Delete admin
 export const deleteAdmin = async (req, res) => {
   try {
-    const { adminId } = req.params
+    const { adminId } = req.params;
 
     // Check if admin exists
     const admin = await prisma.admin.findUnique({
       where: { id: Number.parseInt(adminId) },
       include: {
-        user: true
-      }
-    })
+        user: true,
+      },
+    });
 
     if (!admin) {
-      return res.status(404).json({ message: "Admin not found" })
+      return res.status(404).json({ message: "Admin not found" });
     }
 
     // Prevent deletion of the current admin (optional security measure)
     if (req.user && req.user.id === admin.userId) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: "Cannot delete your own account",
-        details: "Please contact another admin to delete your account"
-      })
+        details: "Please contact another admin to delete your account",
+      });
     }
 
     // Delete admin and associated user in a transaction
     await prisma.$transaction(async (tx) => {
       // Delete admin profile
       await tx.admin.delete({
-        where: { id: Number.parseInt(adminId) }
-      })
+        where: { id: Number.parseInt(adminId) },
+      });
 
       // Delete user account
       await tx.user.delete({
-        where: { id: admin.userId }
-      })
-    })
+        where: { id: admin.userId },
+      });
+    });
 
     res.status(200).json({
-      message: "Admin deleted successfully"
-    })
+      message: "Admin deleted successfully",
+    });
   } catch (error) {
-    console.error("Error deleting admin:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error deleting admin:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Assign warden to hostel
 export const assignWardenToHostel = async (req, res) => {
   try {
-    const { wardenId, hostelId } = req.body
+    const { wardenId, hostelId } = req.body;
 
     // Check if warden exists and is approved
     const warden = await prisma.warden.findUnique({
@@ -2008,38 +2122,40 @@ export const assignWardenToHostel = async (req, res) => {
       include: {
         hostels: {
           include: {
-            hostel: true
-          }
-        }
-      }
-    })
+            hostel: true,
+          },
+        },
+      },
+    });
 
     if (!warden) {
-      return res.status(404).json({ message: "Warden not found" })
+      return res.status(404).json({ message: "Warden not found" });
     }
 
     if (!warden.isApproved) {
-      return res.status(400).json({ message: "Warden must be approved before assignment" })
+      return res
+        .status(400)
+        .json({ message: "Warden must be approved before assignment" });
     }
 
     // Check if hostel exists
     const hostel = await prisma.hostel.findUnique({
-      where: { id: Number.parseInt(hostelId) }
-    })
+      where: { id: Number.parseInt(hostelId) },
+    });
 
     if (!hostel) {
-      return res.status(404).json({ message: "Hostel not found" })
+      return res.status(404).json({ message: "Hostel not found" });
     }
 
     // Check if warden is already assigned to this hostel
     const existingAssignment = warden.hostels.find(
-      wh => wh.hostelId === Number.parseInt(hostelId)
-    )
+      (wh) => wh.hostelId === Number.parseInt(hostelId)
+    );
 
     if (existingAssignment) {
       return res.status(400).json({
-        message: "Warden is already assigned to this hostel"
-      })
+        message: "Warden is already assigned to this hostel",
+      });
     }
 
     // Create hostel assignment
@@ -2054,23 +2170,25 @@ export const assignWardenToHostel = async (req, res) => {
           include: {
             user: {
               select: {
-                email: true
-              }
-            }
-          }
-        }
-      }
-    })
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
     res.status(201).json({
       message: "Warden assigned to hostel successfully",
-      assignment: wardenHostel
-    })
+      assignment: wardenHostel,
+    });
   } catch (error) {
-    console.error("Error assigning warden to hostel:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error assigning warden to hostel:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
+
+// remove warden from hostel
 
 // Get all warden-hostel assignments
 export const getWardenHostelAssignments = async (req, res) => {
@@ -2081,49 +2199,46 @@ export const getWardenHostelAssignments = async (req, res) => {
           include: {
             user: {
               select: {
-                email: true
-              }
-            }
-          }
+                email: true,
+              },
+            },
+          },
         },
-        hostel: true
+        hostel: true,
       },
-      orderBy: [
-        { warden: { fullName: 'asc' } },
-        { hostel: { name: 'asc' } }
-      ]
-    })
+      orderBy: [{ warden: { fullName: "asc" } }, { hostel: { name: "asc" } }],
+    });
 
-    res.status(200).json(assignments)
+    res.status(200).json(assignments);
   } catch (error) {
-    console.error("Error fetching warden-hostel assignments:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error fetching warden-hostel assignments:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Get assignments by warden ID
 export const getWardenAssignments = async (req, res) => {
   try {
-    const { wardenId } = req.params
+    const { wardenId } = req.params;
 
     const warden = await prisma.warden.findUnique({
       where: { id: Number.parseInt(wardenId) },
       include: {
         hostels: {
           include: {
-            hostel: true
-          }
+            hostel: true,
+          },
         },
         user: {
           select: {
-            email: true
-          }
-        }
-      }
-    })
+            email: true,
+          },
+        },
+      },
+    });
 
     if (!warden) {
-      return res.status(404).json({ message: "Warden not found" })
+      return res.status(404).json({ message: "Warden not found" });
     }
 
     res.status(200).json({
@@ -2131,20 +2246,20 @@ export const getWardenAssignments = async (req, res) => {
         id: warden.id,
         fullName: warden.fullName,
         email: warden.user.email,
-        isApproved: warden.isApproved
+        isApproved: warden.isApproved,
       },
-      assignedHostels: warden.hostels.map(wh => wh.hostel)
-    })
+      assignedHostels: warden.hostels.map((wh) => wh.hostel),
+    });
   } catch (error) {
-    console.error("Error fetching warden assignments:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error fetching warden assignments:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Get assignments by hostel ID
 export const getHostelAssignments = async (req, res) => {
   try {
-    const { hostelId } = req.params
+    const { hostelId } = req.params;
 
     const hostel = await prisma.hostel.findUnique({
       where: { id: Number.parseInt(hostelId) },
@@ -2155,90 +2270,92 @@ export const getHostelAssignments = async (req, res) => {
               include: {
                 user: {
                   select: {
-                    email: true
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    })
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
 
     if (!hostel) {
-      return res.status(404).json({ message: "Hostel not found" })
+      return res.status(404).json({ message: "Hostel not found" });
     }
 
     res.status(200).json({
       hostel: {
         id: hostel.id,
         name: hostel.name,
-        type: hostel.type
+        type: hostel.type,
       },
-      assignedWardens: hostel.wardens.map(wh => ({
+      assignedWardens: hostel.wardens.map((wh) => ({
         id: wh.warden.id,
         fullName: wh.warden.fullName,
         email: wh.warden.user.email,
-        isApproved: wh.warden.isApproved
-      }))
-    })
+        isApproved: wh.warden.isApproved,
+      })),
+    });
   } catch (error) {
-    console.error("Error fetching hostel assignments:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error fetching hostel assignments:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Bulk assign wardens to hostels
 export const bulkAssignWardensToHostels = async (req, res) => {
   try {
-    const { assignments } = req.body // Array of { wardenId, hostelId }
+    const { assignments } = req.body; // Array of { wardenId, hostelId }
 
     if (!Array.isArray(assignments) || assignments.length === 0) {
-      return res.status(400).json({ message: "Assignments array is required and cannot be empty" })
+      return res
+        .status(400)
+        .json({ message: "Assignments array is required and cannot be empty" });
     }
 
-    const results = []
-    const errors = []
+    const results = [];
+    const errors = [];
 
     for (const assignment of assignments) {
       try {
-        const { wardenId, hostelId } = assignment
+        const { wardenId, hostelId } = assignment;
 
         // Check if warden exists and is approved
         const warden = await prisma.warden.findUnique({
-          where: { id: Number.parseInt(wardenId) }
-        })
+          where: { id: Number.parseInt(wardenId) },
+        });
 
         if (!warden) {
           errors.push({
             wardenId,
             hostelId,
-            error: "Warden not found"
-          })
-          continue
+            error: "Warden not found",
+          });
+          continue;
         }
 
         if (!warden.isApproved) {
           errors.push({
             wardenId,
             hostelId,
-            error: "Warden must be approved before assignment"
-          })
-          continue
+            error: "Warden must be approved before assignment",
+          });
+          continue;
         }
 
         // Check if hostel exists
         const hostel = await prisma.hostel.findUnique({
-          where: { id: Number.parseInt(hostelId) }
-        })
+          where: { id: Number.parseInt(hostelId) },
+        });
 
         if (!hostel) {
           errors.push({
             wardenId,
             hostelId,
-            error: "Hostel not found"
-          })
-          continue
+            error: "Hostel not found",
+          });
+          continue;
         }
 
         // Check if assignment already exists
@@ -2246,18 +2363,18 @@ export const bulkAssignWardensToHostels = async (req, res) => {
           where: {
             wardenId_hostelId: {
               wardenId: Number.parseInt(wardenId),
-              hostelId: Number.parseInt(hostelId)
-            }
-          }
-        })
+              hostelId: Number.parseInt(hostelId),
+            },
+          },
+        });
 
         if (existingAssignment) {
           errors.push({
             wardenId,
             hostelId,
-            error: "Assignment already exists"
-          })
-          continue
+            error: "Assignment already exists",
+          });
+          continue;
         }
 
         // Create assignment
@@ -2272,31 +2389,31 @@ export const bulkAssignWardensToHostels = async (req, res) => {
               include: {
                 user: {
                   select: {
-                    email: true
-                  }
-                }
-              }
-            }
-          }
-        })
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        });
 
-        results.push(wardenHostel)
+        results.push(wardenHostel);
       } catch (error) {
         errors.push({
           wardenId: assignment.wardenId,
           hostelId: assignment.hostelId,
-          error: "Failed to create assignment"
-        })
+          error: "Failed to create assignment",
+        });
       }
     }
 
     res.status(200).json({
       message: `Bulk assignment completed. ${results.length} successful, ${errors.length} failed.`,
       successful: results,
-      errors: errors
-    })
+      errors: errors,
+    });
   } catch (error) {
-    console.error("Error in bulk assignment:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error in bulk assignment:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};

@@ -34,6 +34,7 @@ import {
   getWardenAssignments,
   getHostelAssignments,
   bulkAssignWardensToHostels,
+  updateStudent,
 } from "../controllers/admin.controller.js"
 import { checkRole } from "../middleware/auth.middleware.js"
 import { 
@@ -88,6 +89,13 @@ router.get("/students/:studentId", (req, res, next) => {
     res.status(403).json({ message: "Access denied" })
   }
 }, getStudent)
+router.patch("/students/:studentId", (req, res, next) => {
+  if (req.user.role === "ADMIN" || req.user.role === "WARDEN") {
+    next()
+  } else {
+    res.status(403).json({ message: "Access denied" })
+  }
+}, updateStudent)
 
 router.delete("/students/:studentId", (req, res, next) => {
   if (req.user.role === "ADMIN" || req.user.role === "WARDEN") {
@@ -128,6 +136,7 @@ router.delete("/students/:studentId/room", deallocateStudentRoom)
 router.post("/students/allocate-room", allocateRoom)
 
 // Warden-Hostel Assignment routes
+router.post("/warden-hostel/assign", validateWardenHostelAssignment, assignWardenToHostel)
 router.post("/warden-hostel/assign", validateWardenHostelAssignment, assignWardenToHostel)
 router.get("/warden-hostel/assignments", getWardenHostelAssignments)
 router.get("/warden-hostel/warden/:wardenId", getWardenAssignments)
