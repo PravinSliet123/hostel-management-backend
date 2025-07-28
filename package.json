@@ -33,6 +33,7 @@
     "nodemon": "^3.1.10",
     "prisma": "latest",
     "react": "^19",
+    "twilio": "^5.8.0",
     "vaul": "^0.9.6",
     "zod": "^3.24.1"
   },

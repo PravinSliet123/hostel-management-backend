@@ -14,6 +14,7 @@ import bcrypt from "bcrypt"
 import AWS from 'aws-sdk';
 import prisma from "./config/db.js"
 import multer from "multer";
+import twilio from "twilio"
 
 import { sendEMail } from "./utils/email.service.js"
 // Create Express app
@@ -34,7 +35,9 @@ app.use(express.json())
 //   region: 'ap-south-1'
 // })
 
-
+const accountSid = process.env.TWILIO_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const twilioClient = twilio(accountSid, authToken);
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 const s3 = new AWS.S3({
@@ -52,6 +55,69 @@ async function uploadFileToS3(bucketName, fileName, fileBuffer, fileType) {
 
   return s3.upload(params).promise()
 }
+
+app.post('/api/send-otp-phone', async (req, res) => {
+  const { phone } = req.body;
+  console.log('phone: ', phone);
+
+  try {
+    const verification = await twilioClient.verify
+      .v2.services(process.env.TWILIO_VERIFY_SID)
+      .verifications.create({ to: `+91${phone}`, channel: 'sms' });
+
+    res.json({ status: verification.status });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Failed to send OTP');
+  }
+});
+app.post('/api/verify-otp-phone', async (req, res) => {
+  const { phone, code } = req.body;
+
+  try {
+    const verificationCheck = await twilioClient.verify
+      .v2.services(process.env.TWILIO_VERIFY_SID)
+      .verificationChecks.create({ to: `+91${phone}`, code });
+
+    res.json({ status: verificationCheck.status });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Failed to verify OTP');
+  }
+});
+
+
+app.post('/api/send-otp-email', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const verification = await twilioClient.verify
+      .v2.services(process.env.TWILIO_VERIFY_SID)
+      .verifications.create({ to: email, channel: 'email' });
+
+    res.json({ status: verification.status });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Failed to send OTP');
+  }
+});
+
+
+
+// app.post('/api/verify-otp-email', async (req, res) => {
+//   const { email, code } = req.body;
+
+//   try {
+//     const verificationCheck = await twilioClient.verify
+//       .v2.services(process.env.TWILIO_VERIFY_SID)
+//       .verificationChecks.create({ to: phone, code });
+
+//     res.json({ status: verificationCheck.status });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send('Failed to verify OTP');
+//   }
+// });
 app.post("/api/upload-files", upload.single("file"), async (req, res) => {
   try {
     const file = req.file;
