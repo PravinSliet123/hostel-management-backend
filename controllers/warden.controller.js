@@ -777,3 +777,193 @@ export const getPaymentSummary = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const deallocateStudentRoom = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    // Check if student exists and has an active room allocation
+    const student = await prisma.student.findUnique({
+      where: { id: Number.parseInt(studentId) },
+      include: {
+        roomAllocations: {
+          where: { isActive: true },
+          include: {
+            room: true,
+          },
+        },
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    if (student.roomAllocations.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "Student is not allocated to any room" });
+    }
+
+    // Update room allocation and room vacancy in a transaction
+    await prisma.$transaction(async (tx) => {
+      // Update room allocation with deallocation timestamp
+      await tx.roomAllocation.update({
+        where: { id: student.roomAllocations[0].id },
+        data: {
+          isActive: false,
+          deallocatedAt: new Date(),
+        },
+      });
+
+      // Update room vacancy
+      await tx.room.update({
+        where: { id: student.roomAllocations[0].room.id },
+        data: {
+          vacantSeats: {
+            increment: 1,
+          },
+        },
+      });
+    });
+
+    res.status(200).json({
+      message: "Student's room deallocated successfully",
+    });
+  } catch (error) {
+    console.error("Error deallocating student's room:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const allocateRoom = async (req, res) => {
+  try {
+    const { studentId, hostelId, roomId } = req.body;
+    console.log('hostelId: ', hostelId);
+    console.log('roomId: ', roomId);
+
+    // Validate required fields
+    if (!studentId || !hostelId || !roomId) {
+      return res.status(400).json({
+        message: "studentId, hostelId, and roomId are required fields",
+      });
+    }
+
+    // Check if student exists
+    const student = await prisma.student.findUnique({
+      where: { id: Number.parseInt(studentId) },
+      include: {
+        roomAllocations: {
+          where: { isActive: true },
+        },
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    // Check if student already has an active room allocation
+    if (student.roomAllocations.length > 0) {
+      return res.status(400).json({
+        message: "Student already has an active room allocation",
+      });
+    }
+
+    // Check if room exists and belongs to the specified hostel
+    const room = await prisma.room.findFirst({
+      where: {
+        id: Number.parseInt(roomId),
+        hostelId: Number.parseInt(hostelId),
+        vacantSeats: { gt: 0 },
+      },
+    });
+
+    if (!room) {
+      return res.status(404).json({
+        message: "Room not found or no vacant seats available",
+      });
+    }
+
+    // Create room allocation and update room vacancy in a transaction
+    const [allocation] = await prisma.$transaction([
+      // Create room allocation
+      prisma.roomAllocation.create({
+        data: {
+          studentId: Number.parseInt(studentId),
+          roomId: Number.parseInt(roomId),
+          semester: student.semester,
+          year: student.year,
+          isActive: true,
+        },
+      }),
+      // Update room vacancy
+      prisma.room.update({
+        where: { id: Number.parseInt(roomId) },
+        data: {
+          vacantSeats: {
+            decrement: 1,
+          },
+        },
+      }),
+    ]);
+
+    // Only create payment if allocation was successful
+    if (allocation) {
+      const payment = await prisma.payment.create({
+        data: {
+          userId: student.userId,
+          amount: 1500,
+          description: `Hostel fee for semester ${student.semester}, year ${student.year}`,
+          dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // 15 days from now
+          semester: student.semester,
+          year: student.year,
+        },
+      });
+
+      // Fetch student user email
+      const user = await prisma.user.findUnique({
+        where: { id: student.userId },
+      });
+
+      console.log("user", user);
+      // Send email to student
+      try {
+        await sendEMail({
+          to: user.email,
+          subject: "Hostel Payment Created",
+          html: `<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+            <h2 style='color: #333;'>Hostel Payment Created</h2>
+            <p>Hello ${user.fullName || "Student"},</p>
+            <p>Your hostel payment has been created for semester ${
+              student.semester
+            }, year ${student.year}.</p>
+            <ul>
+              <li><strong>Amount:</strong> ₹1500</li>
+              <li><strong>Due Date:</strong> ${payment.dueDate.toLocaleDateString()}</li>
+              <li><strong>Status:</strong> ${payment.status}</li>
+            </ul>
+            <p>Please pay before the due date to avoid any penalties.</p>
+            <p>Best regards,<br>Hostel Management Team</p>
+          </div>`,
+        });
+      } catch (emailError) {
+        console.error("Error sending payment email to student:", emailError);
+        // Continue even if email fails
+      }
+
+      return res.status(201).json({
+        message: "Room allocated successfully and payment created",
+        allocation,
+        payment,
+      });
+    } else {
+      return res
+        .status(500)
+        .json({ message: "Room allocation failed, payment not created" });
+    }
+  } catch (error) {
+    console.error("Error allocating room:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};

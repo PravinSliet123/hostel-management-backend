@@ -11,7 +11,9 @@ import {
   getHostelRooms,
   getHostelDetails,
   getRoomDetails,
-  deleteStudent
+  deleteStudent,
+  deallocateStudentRoom,
+  allocateRoom
 } from "../controllers/warden.controller.js"
 import { checkRole } from "../middleware/auth.middleware.js"
 
@@ -29,10 +31,12 @@ router.get("/student-payments", getStudentPayments)
 router.get("/hostels/:hostelId/students", getStudentPaymentsByHostel)
 router.get("/payment-summary", getPaymentSummary)
 router.delete("/students/:studentId", deleteStudent)
+router.post("/students/allocate-room", allocateRoom)
 // Hostel management routes
 router.get("/hostels", getHostels)
 router.get("/hostels/:hostelId", getHostelDetails)
 router.get("/hostels/:hostelId/rooms", getHostelRooms)
 router.get("/rooms/:roomId", getRoomDetails)
+router.delete("/students/:studentId/room", deallocateStudentRoom)
 
 export default router
