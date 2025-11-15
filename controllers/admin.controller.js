@@ -1250,7 +1250,8 @@ export const deallocateStudentRoom = async (req, res) => {
         },
       },
     });
-
+    console.log('student: ', student.roomAllocations[0]);
+    
     if (!student) {
       return res.status(404).json({ message: "Student not found" });
     }
