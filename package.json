@@ -32,6 +32,7 @@
     "nodemailer": "^7.0.3",
     "nodemon": "^3.1.10",
     "prisma": "latest",
+    "razorpay": "^2.9.6",
     "react": "^19",
     "twilio": "^5.8.0",
     "vaul": "^0.9.6",

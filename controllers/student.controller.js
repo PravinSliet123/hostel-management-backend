@@ -106,6 +106,14 @@ export const getPaymentStatus = async (req, res) => {
     const payments = await prisma.payment.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
+      include:{
+        user:{
+          include:{
+            student:true
+          }
+        },
+        
+      }
     })
 
     res.status(200).json(payments)
