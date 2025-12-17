@@ -3,6 +3,7 @@ import express from "express"
 import cors from "cors"
 import helmet from "helmet"
 import morgan from "morgan"
+import cron from "node-cron";
 import authRoutes from "./routes/auth.routes.js"
 import studentRoutes from "./routes/student.routes.js"
 import wardenRoutes from "./routes/warden.routes.js"
@@ -18,6 +19,7 @@ import multer from "multer";
 import twilio from "twilio"
 
 import { sendEMail } from "./utils/email.service.js"
+import { processDailyPayments } from './services/payment.service.js';
 // Create Express app
 
 const app = express()
@@ -267,3 +269,8 @@ app.use(errorHandler)
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`)
 })
+
+// Schedule daily payment processing
+cron.schedule("0 10 * * *", () => {
+  processDailyPayments();
+});

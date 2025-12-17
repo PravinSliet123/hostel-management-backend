@@ -158,6 +158,7 @@ model Payment {
   status      PaymentStatus @default(PENDING)
   dueDate     DateTime
   paidAt      DateTime?
+  penalty     Float         @default(0)
   semester    Int
   year        Int
   createdAt   DateTime      @default(now())
