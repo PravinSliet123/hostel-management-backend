@@ -1540,11 +1540,11 @@ export const updateStudent = async (req, res) => {
 export const allocateRoom = async (req, res) => {
   try {
     const { studentId, hostelId, roomId } = req.body;
-    const { hostelApplicationId, status } = req.query;
+    const { applicationId, status } = req.query;
 
-    if (hostelApplicationId) {
+    if (applicationId) {
       const application = await prisma.hostelApplication.findUnique({
-        where: { id: Number.parseInt(hostelApplicationId) },
+        where: { id: Number.parseInt(applicationId) },
       });
 
       if (!application) {
@@ -1555,7 +1555,7 @@ export const allocateRoom = async (req, res) => {
 
       if (status !== "APPROVED") {
         const updatedApplication = await prisma.hostelApplication.update({
-          where: { id: Number.parseInt(hostelApplicationId) },
+          where: { id: Number.parseInt(applicationId) },
           data: { status },
         });
         return res.status(200).json({
@@ -1631,10 +1631,10 @@ export const allocateRoom = async (req, res) => {
       }),
     ];
 
-    if (hostelApplicationId && status === "APPROVED") {
+    if (applicationId && status === "APPROVED") {
       transactionOperations.push(
         prisma.hostelApplication.update({
-          where: { id: Number.parseInt(hostelApplicationId) },
+          where: { id: Number.parseInt(applicationId) },
           data: { status: "APPROVED" },
         })
       );
