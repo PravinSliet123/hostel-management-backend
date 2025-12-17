@@ -49,7 +49,6 @@ model User {
   student           Student?
   warden            Warden?
   admin             Admin?
-  hostelApplication HostelApplication?
   payments          Payment[]
 }
 
@@ -76,6 +75,7 @@ model Student {
   photo                 String?          @default("")
   prevSemesterMarksheet String?          @default("")
   roomAllocations       RoomAllocation[]
+  hostelApplication     HostelApplication?
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
 }
@@ -113,6 +113,7 @@ model Hostel {
   vacantRooms Int            @default(0)
   rooms       Room[]
   wardens     WardenHostel[]
+  hostelApplications HostelApplication[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 }
@@ -126,6 +127,7 @@ model Room {
   hostelId    Int
   hostel      Hostel           @relation(fields: [hostelId], references: [id])
   allocations RoomAllocation[]
+  hostelApplications HostelApplication[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
@@ -134,8 +136,12 @@ model Room {
 
 model HostelApplication {
   id          Int               @id @default(autoincrement())
-  student     User              @relation(fields: [studentId], references: [id])
+  student     Student           @relation(fields: [studentId], references: [id])
   studentId   Int               @unique
+  hostel      Hostel            @relation(fields: [hostelId], references: [id])
+  hostelId    Int
+  room        Room              @relation(fields: [roomId], references: [id])
+  roomId      Int
   status      ApplicationStatus @default(PENDING)
   appliedAt   DateTime          @default(now())
   processedAt DateTime?
@@ -183,10 +189,24 @@ model RoomAllocation {
   deallocatedAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-
-  // REMOVE this because it causes errors:
-  // @@unique([studentId, semester, year, isActive])
-
-  // KEEP this index for fast queries
   @@index([studentId, isActive])
+}
+
+model masterStudents {
+  id             Int      @id @default(autoincrement())
+  fullName       String
+  registrationNo String   @unique
+  rollNo         String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model PricingPlan {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  semester  Int
+  year      Int
+  price     Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

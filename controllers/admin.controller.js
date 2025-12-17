@@ -1540,6 +1540,30 @@ export const updateStudent = async (req, res) => {
 export const allocateRoom = async (req, res) => {
   try {
     const { studentId, hostelId, roomId } = req.body;
+    const { hostelApplicationId, status } = req.query;
+
+    if (hostelApplicationId) {
+      const application = await prisma.hostelApplication.findUnique({
+        where: { id: Number.parseInt(hostelApplicationId) },
+      });
+
+      if (!application) {
+        return res
+          .status(404)
+          .json({ message: "Hostel application not found" });
+      }
+
+      if (status !== "APPROVED") {
+        const updatedApplication = await prisma.hostelApplication.update({
+          where: { id: Number.parseInt(hostelApplicationId) },
+          data: { status },
+        });
+        return res.status(200).json({
+          message: `Hostel application status updated to ${status}`,
+          application: updatedApplication,
+        });
+      }
+    }
 
     // Validate required fields
     if (!studentId || !hostelId || !roomId) {
@@ -1585,7 +1609,7 @@ export const allocateRoom = async (req, res) => {
     }
 
     // Create room allocation and update room vacancy in a transaction
-    const [allocation] = await prisma.$transaction([
+    const transactionOperations = [
       // Create room allocation
       prisma.roomAllocation.create({
         data: {
@@ -1605,14 +1629,39 @@ export const allocateRoom = async (req, res) => {
           },
         },
       }),
-    ]);
+    ];
+
+    if (hostelApplicationId && status === "APPROVED") {
+      transactionOperations.push(
+        prisma.hostelApplication.update({
+          where: { id: Number.parseInt(hostelApplicationId) },
+          data: { status: "APPROVED" },
+        })
+      );
+    }
+
+    const [allocation] = await prisma.$transaction(transactionOperations);
 
     // Only create payment if allocation was successful
     if (allocation) {
+      const pricingPlan = await prisma.pricingPlan.findFirst({
+        where: {
+          semester: student.semester,
+          year: student.year,
+        },
+      });
+      
+      if (!pricingPlan) {
+        return res.status(404).json({
+          message: `Pricing plan for semester ${student.semester} and year ${student.year} not found`,
+        });
+      }
+      console.log('pricingPlan: ', pricingPlan);
+
       const payment = await prisma.payment.create({
         data: {
           userId: student.userId,
-          amount: 1500,
+          amount: pricingPlan.price,
           description: `Hostel fee for semester ${student.semester}, year ${student.year}`,
           dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // 15 days from now
           semester: student.semester,
@@ -1638,7 +1687,7 @@ export const allocateRoom = async (req, res) => {
               student.semester
             }, year ${student.year}.</p>
             <ul>
-              <li><strong>Amount:</strong> ₹1500</li>
+              <li><strong>Amount:</strong> ₹${pricingPlan.price}</li>
               <li><strong>Due Date:</strong> ${payment.dueDate.toLocaleDateString()}</li>
               <li><strong>Status:</strong> ${payment.status}</li>
             </ul>
@@ -2415,6 +2464,143 @@ export const bulkAssignWardensToHostels = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in bulk assignment:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Bulk upsert master students
+export const bulkUpsertMasterStudents = async (req, res) => {
+  try {
+    const { students } = req.body;
+
+    if (!Array.isArray(students) || students.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "Students array is required and cannot be empty" });
+    }
+
+    const results = await prisma.$transaction(async (tx) => {
+      const upsertedStudents = [];
+      for (const student of students) {
+        const { registrationNo, rollNo, ...data } = student;
+
+        const existingStudent = await tx.masterStudents.findFirst({
+          where: {
+            OR: [
+              { registrationNo },
+              { rollNo },
+            ],
+          },
+        });
+
+        if (existingStudent) {
+          const updatedStudent = await tx.masterStudents.update({
+            where: { id: existingStudent.id },
+            data,
+          });
+          upsertedStudents.push(updatedStudent);
+        } else {
+          const createdStudent = await tx.masterStudents.create({
+            data: {
+              registrationNo,
+              rollNo,
+              ...data,
+            },
+          });
+          upsertedStudents.push(createdStudent);
+        }
+      }
+      return upsertedStudents;
+    });
+
+    res.status(200).json({
+      message: "Master student data upserted successfully",
+      count: results.length,
+    });
+  } catch (error) {
+    console.error("Error in bulk upsert of master students:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Get all master students
+export const getAllMasterStudents = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+
+    const skip = (pageNum - 1) * limitNum;
+
+    const [masterStudents, total] = await prisma.$transaction([
+      prisma.masterStudents.findMany({
+        skip,
+        take: limitNum,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      prisma.masterStudents.count(),
+    ]);
+
+    res.status(200).json({
+      data: masterStudents,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching master students:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+export const getAllApplications = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status, hostelId } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+
+    const skip = (pageNum - 1) * limitNum;
+
+    const whereClause = {};
+    if (status) {
+      whereClause.status = status;
+    }
+    if (hostelId) {
+      whereClause.hostelId = parseInt(hostelId);
+    }
+
+    const [applications, total] = await prisma.$transaction([
+      prisma.hostelApplication.findMany({
+        where: whereClause,
+        skip,
+        take: limitNum,
+        orderBy: {
+          createdAt: "desc",
+        },
+        include: {
+          student: true,
+          hostel: true,
+          room: true,
+        },
+      }),
+      prisma.hostelApplication.count({ where: whereClause }),
+    ]);
+
+    res.status(200).json({
+      data: applications,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching applications:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };

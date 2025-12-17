@@ -8,6 +8,7 @@ import studentRoutes from "./routes/student.routes.js"
 import wardenRoutes from "./routes/warden.routes.js"
 import adminRoutes from "./routes/admin.routes.js"
 import paymentRoutes from "./routes/payment.routes.js"
+import pricingRoutes from "./routes/pricing.routes.js"
 import { errorHandler } from "./middleware/error.middleware.js"
 import { authenticateToken } from "./middleware/auth.middleware.js"
 import bcrypt from "bcrypt"
@@ -257,6 +258,7 @@ app.use("/api/students", authenticateToken, studentRoutes)
 app.use("/api/wardens", authenticateToken, wardenRoutes)
 app.use("/api/admin", authenticateToken, adminRoutes)
 app.use("/api/payments", authenticateToken, paymentRoutes)
+app.use("/api/pricing", authenticateToken, pricingRoutes)
 
 // Error handling middleware
 app.use(errorHandler)

@@ -31,6 +31,7 @@
     "multer": "^2.0.1",
     "nodemailer": "^7.0.3",
     "nodemon": "^3.1.10",
+    "pdfkit": "^0.17.2",
     "prisma": "latest",
     "razorpay": "^2.9.6",
     "react": "^19",

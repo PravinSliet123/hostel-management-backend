@@ -35,6 +35,9 @@ import {
   getHostelAssignments,
   bulkAssignWardensToHostels,
   updateStudent,
+  bulkUpsertMasterStudents,
+  getAllMasterStudents,
+  getAllApplications,
 } from "../controllers/admin.controller.js"
 import { checkRole } from "../middleware/auth.middleware.js"
 import { 
@@ -142,5 +145,9 @@ router.get("/warden-hostel/assignments", getWardenHostelAssignments)
 router.get("/warden-hostel/warden/:wardenId", getWardenAssignments)
 router.get("/warden-hostel/hostel/:hostelId", getHostelAssignments)
 router.post("/warden-hostel/bulk-assign", validateBulkWardenHostelAssignment, bulkAssignWardensToHostels)
+router.get("/applications", getAllApplications)
+// Master student data
+router.post("/master-students/bulk-upsert", bulkUpsertMasterStudents)
+router.get("/master-students", getAllMasterStudents)
 
 export default router

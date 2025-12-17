@@ -1,11 +1,13 @@
 import express from "express"
-import { registerStudent, registerWarden, login, changePassword } from "../controllers/auth.controller.js"
+import { registerStudent, registerWarden, login, changePassword, resetPassword, forgotPassword } from "../controllers/auth.controller.js"
 import { validateRegisterStudent, validateRegisterWarden, validateLogin, validateChangePassword } from "../middleware/validation.middleware.js"
 import { authenticateToken } from "../middleware/auth.middleware.js"
 
 const router = express.Router()
 
 // Register routes
+router.post("/forgot-password", forgotPassword)
+router.post("/reset-password", resetPassword)
 router.post("/register/student", validateRegisterStudent, registerStudent)
 router.post("/register/warden", validateRegisterWarden, registerWarden)
 
