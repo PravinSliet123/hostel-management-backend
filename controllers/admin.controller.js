@@ -768,7 +768,6 @@ export const getAllStudents = async (req, res) => {
     }));
 
     res.status(200).json(transformedStudents);
-    
   } catch (error) {
     console.error("Error fetching students:", error);
     if (error.code === "P2025") {
@@ -1250,8 +1249,8 @@ export const deallocateStudentRoom = async (req, res) => {
         },
       },
     });
-    console.log('student: ', student.roomAllocations[0]);
-    
+    console.log("student: ", student.roomAllocations[0]);
+
     if (!student) {
       return res.status(404).json({ message: "Student not found" });
     }
@@ -1461,8 +1460,8 @@ export const getStudent = async (req, res) => {
 };
 
 export const updateStudent = async (req, res) => {
-  const {studentId} = req.params;
-  console.log('studentId: ', studentId);
+  const { studentId } = req.params;
+  console.log("studentId: ", studentId);
   const {
     fullName,
     fatherName,
@@ -1519,7 +1518,7 @@ export const updateStudent = async (req, res) => {
         mobileNo,
         address,
         pinCode,
-        distanceFromCollege
+        distanceFromCollege,
       },
     });
 
@@ -1558,6 +1557,45 @@ export const allocateRoom = async (req, res) => {
           where: { id: Number.parseInt(applicationId) },
           data: { status },
         });
+        // Fetch student details
+        const student = await prisma.student.findUnique({
+          where: { id: Number.parseInt(studentId) },
+          include: {
+            user: true,
+          },
+        });
+        try {
+          await sendEMail({
+            to: student.user.email,
+            subject: "Hostel Application Rejected",
+            html: `
+      <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+        <h2 style='color: #333;'>Hostel Application Rejected</h2>
+
+        <p>Hello ${student.fullName || "Student"},</p>
+
+        <p>We regret to inform you that your hostel application for semester ${
+          student.semester
+        }, 
+        year ${student.year}, has been <strong>rejected</strong>.</p>
+
+        <p>Please review your submitted details or contact the Hostel Management Team 
+        if you believe this decision may have been made in error.</p>
+
+        <p>Thank you for your understanding.</p>
+
+        <p>Best regards,<br>Hostel Management Team</p>
+      </div>
+    `,
+          });
+        } catch (emailError) {
+          console.error(
+            "Error sending rejection email to student:",
+            emailError
+          );
+          // Continue even if email fails
+        }
+
         return res.status(200).json({
           message: `Hostel application status updated to ${status}`,
           application: updatedApplication,
@@ -1650,13 +1688,13 @@ export const allocateRoom = async (req, res) => {
           year: student.year,
         },
       });
-      
+
       if (!pricingPlan) {
         return res.status(404).json({
           message: `Pricing plan for semester ${student.semester} and year ${student.year} not found`,
         });
       }
-      console.log('pricingPlan: ', pricingPlan);
+      console.log("pricingPlan: ", pricingPlan);
 
       const payment = await prisma.payment.create({
         data: {
@@ -2486,10 +2524,7 @@ export const bulkUpsertMasterStudents = async (req, res) => {
 
         const existingStudent = await tx.masterStudents.findFirst({
           where: {
-            OR: [
-              { registrationNo },
-              { rollNo },
-            ],
+            OR: [{ registrationNo }, { rollNo }],
           },
         });
 
