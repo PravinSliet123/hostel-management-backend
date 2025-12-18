@@ -21,9 +21,12 @@ export const generateHostelApplicationPDF = (studentData) => {
       .text("Hostel Registration Application Form", { align: "center" });
     doc
       .fontSize(12)
-      .text(`Academic Session: ${new Date().getFullYear()}-${
-        new Date().getFullYear() + 1
-      }`, { align: "center" });
+      .text(
+        `Academic Session: ${new Date().getFullYear()}-${
+          new Date().getFullYear() + 1
+        }`,
+        { align: "center" }
+      );
     doc.moveDown(2);
 
     // Personal Information
@@ -85,6 +88,83 @@ export const generateHostelApplicationPDF = (studentData) => {
     doc.y -= 25;
     doc.text("_________________________");
     doc.text("Warden Signature", { align: "right" });
+
+    doc.end();
+  });
+};
+
+export const generateInvoicePDF = (invoiceData) => {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 50 });
+    const buffers = [];
+
+    doc.on("data", buffers.push.bind(buffers));
+    doc.on("end", () => {
+      const pdfData = Buffer.concat(buffers);
+      resolve(pdfData);
+    });
+
+    const { student, payment, room, hostel } = invoiceData;
+
+    // Header
+    doc
+      .fontSize(18)
+      .font("Helvetica-Bold")
+      .text("Hostel Fee Invoice", { align: "center" });
+    doc
+      .fontSize(12)
+      .font("Helvetica")
+      .text("Government Polytechnic Buxar", { align: "center" });
+    doc.moveDown(2);
+
+    // Invoice Details
+    doc.fontSize(12).font("Helvetica-Bold").text("Invoice Details");
+    doc.rect(50, doc.y, 500, 0.5).stroke();
+    doc.moveDown();
+    doc.font("Helvetica").text(`Invoice ID: ${payment.id}`);
+    doc.text(`Issue Date: ${new Date().toLocaleDateString()}`);
+    doc.text(`Due Date: ${payment.dueDate.toLocaleDateString()}`);
+    doc.text(`Semester: ${payment.semester}`);
+    doc.text(`Year: ${payment.year}`);
+    doc.moveDown(2);
+
+    // Student Information
+    doc.fontSize(12).font("Helvetica-Bold").text("Student Information");
+    doc.rect(50, doc.y, 500, 0.5).stroke();
+    doc.moveDown();
+    doc.font("Helvetica").text(`Full Name: ${student.fullName}`);
+    doc.text(`Registration No: ${student.registrationNo}`);
+    doc.text(`Roll No: ${student.rollNo}`);
+    doc.moveDown(2);
+
+    // Allocation Details
+    doc.fontSize(12).font("Helvetica-Bold").text("Allocation Details");
+    doc.rect(50, doc.y, 500, 0.5).stroke();
+    doc.moveDown();
+    doc.font("Helvetica").text(`Hostel: ${hostel.name}`);
+    doc.text(`Room Number: ${room.roomNumber}`);
+    doc.text(`Room Type: ${room.roomType}`);
+    doc.moveDown(2);
+
+    // Payment Details
+    doc.fontSize(12).font("Helvetica-Bold").text("Payment Details");
+    doc.rect(50, doc.y, 500, 0.5).stroke();
+    doc.moveDown();
+    doc.font("Helvetica").text(`Description: ${payment.description}`);
+    doc.font("Helvetica-Bold").text(`Amount: Rs. ${payment.amount.toFixed(2)}`);
+    doc.moveDown(3);
+
+    // Footer
+    doc
+      .fontSize(10)
+      .text(
+        `${
+          payment.status === "PAID"
+            ? "Payment received successfully."
+            : "Please pay the amount before the due date to avoid any penalties."
+        }`,
+        { align: "center" }
+      );
 
     doc.end();
   });

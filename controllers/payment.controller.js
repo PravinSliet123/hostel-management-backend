@@ -1,6 +1,8 @@
 import Razorpay from "razorpay";
 import prisma from "../config/db.js";
-import crypto from "crypto"
+import crypto from "crypto";
+import { sendEMail } from "../utils/email.service.js";
+import { generateInvoicePDF } from "../utils/pdf.generator.js";
 // Get all payments for a user
 export const getUserPayments = async (req, res) => {
   try {
@@ -193,6 +195,28 @@ export const verifyPayment = async (req, res) => {
     where: {
       id: Number.parseInt(paymentId),
     },
+    include: {
+      user: {
+        include: {
+          student: {
+            include: {
+              roomAllocations: {
+                where: {
+                  isActive: true,
+                },
+                include: {
+                  room: {
+                    include: {
+                      hostel: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!payment) {
@@ -210,6 +234,35 @@ export const verifyPayment = async (req, res) => {
       status: "PAID",
       paidAt: new Date(),
     },
+  });
+
+  // Generate invoice
+  const student = payment.user.student;
+  const roomAllocation = student.roomAllocations[0];
+  const room = roomAllocation.room;
+  const hostel = room.hostel;
+
+  const invoiceData = {
+    student,
+    payment: updatedPayment,
+    room,
+    hostel,
+  };
+
+  const invoicePDF = await generateInvoicePDF(invoiceData);
+
+  // Send email with invoice
+  await sendEMail({
+    to: payment.user.email,
+    subject: "Payment Successful - Hostel Fee Invoice",
+    html: `<p>Dear ${student.fullName},</p><p>Your payment has been successfully processed. Please find your invoice attached.</p>`,
+    attachments: [
+      {
+        filename: `invoice-${payment.id}.pdf`,
+        content: invoicePDF,
+        contentType: "application/pdf",
+      },
+    ],
   });
 
   res.json({
