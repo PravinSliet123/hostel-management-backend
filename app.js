@@ -26,18 +26,7 @@ const app = express()
 const PORT = process.env.PORT || 8080
 
 // Middleware
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "https://hyperanarchic-diaphysial-maryln.ngrok-free.dev",
-      "https://sarvinfotech.net"
-    ],
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true
-  })
-)
+app.use(cors())
 app.use(helmet())
 app.use(morgan("dev"))
 app.use(express.json())
