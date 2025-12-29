@@ -1529,24 +1529,45 @@ export const updateStudent = async (req, res) => {
   }
 
   try {
-    const student = await prisma.student.update({
-      where: { id: Number.parseInt(studentId) },
-      data: {
-        fullName,
-        fatherName,
-        gender,
-        department,
-        rank,
-        registrationNo,
-        rollNo,
-        year,
-        semester,
-        aadharNo,
-        mobileNo,
-        address,
-        pinCode,
-        distanceFromCollege,
-      },
+    const student = await prisma.$transaction(async (tx) => {
+      const updatedStudent = await tx.student.update({
+        where: { id: Number.parseInt(studentId) },
+        data: {
+          fullName,
+          fatherName,
+          gender,
+          department,
+          rank,
+          registrationNo,
+          rollNo,
+          year,
+          semester,
+          aadharNo,
+          mobileNo,
+          address,
+          pinCode,
+          distanceFromCollege,
+        },
+      });
+
+      // After updating the student, check and update the master student record
+      const masterStudent = await tx.masterStudents.findFirst({
+        where: {
+          OR: [
+            { registrationNo: updatedStudent.registrationNo },
+            { rollNo: updatedStudent.rollNo },
+          ],
+        },
+      });
+
+      if (masterStudent) {
+        await tx.masterStudents.update({
+          where: { id: masterStudent.id },
+          data: { isExistingStudent: true },
+        });
+      }
+
+      return updatedStudent;
     });
 
     return res
@@ -1567,7 +1588,7 @@ export const allocateRoom = async (req, res) => {
   try {
     const { studentId, hostelId, roomId } = req.body;
     const { applicationId, status } = req.query;
-    console.log('applicationId: ', applicationId);
+    console.log("applicationId: ", applicationId);
 
     if (applicationId) {
       const application = await prisma.hostelApplication.findUnique({
@@ -1604,10 +1625,10 @@ export const allocateRoom = async (req, res) => {
 
         <p>We regret to inform you that your hostel application for semester ${
           student.semester
-        }, 
+        },
         year ${student.year}, has been <strong>rejected</strong>.</p>
 
-        <p>Please review your submitted details or contact the Hostel Management Team 
+        <p>Please review your submitted details or contact the Hostel Management Team
         if you believe this decision may have been made in error.</p>
 
         <p>Thank you for your understanding.</p>
@@ -1674,17 +1695,42 @@ export const allocateRoom = async (req, res) => {
       });
     }
 
-    // Fetch pricing plan before starting the transaction
-    const pricingPlan = await prisma.pricingPlan.findFirst({
+    // New logic for existing students
+    const masterStudent = await prisma.masterStudents.findFirst({
       where: {
-        semester: student.semester,
-        year: student.year,
+        OR: [
+          { registrationNo: student.registrationNo },
+          { rollNo: student.rollNo },
+        ],
       },
     });
 
+    let pricingPlan;
+    if (masterStudent && masterStudent.isExistingStudent) {
+      pricingPlan = await prisma.pricingPlan.findFirst({
+        where: {
+          semester: student.semester,
+          year: student.year,
+          isExistingStudent: true,
+        },
+      });
+    } else {
+      pricingPlan = await prisma.pricingPlan.findFirst({
+        where: {
+          semester: student.semester,
+          year: student.year,
+          isExistingStudent: false,
+        },
+      });
+    }
+
     if (!pricingPlan) {
       return res.status(404).json({
-        message: `Pricing plan for semester ${student.semester} and year ${student.year} not found`,
+        message: `Pricing plan for semester ${student.semester} and year ${
+          student.year
+        } for ${
+          masterStudent?.isExistingStudent ? "existing" : "new"
+        } students not found`,
       });
     }
 
