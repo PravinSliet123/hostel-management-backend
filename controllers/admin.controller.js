@@ -707,21 +707,50 @@ export const rejectWarden = async (req, res) => {
 // Get all students
 export const getAllStudents = async (req, res) => {
   try {
-    const { hostelId } = req.query;
-    console.log("hostelId", hostelId);
+    const { hostelId, registrationNo, rollNo, semester, email } = req.query;
+
+    const where = {};
+
+    if (hostelId) {
+      where.roomAllocations = {
+        some: {
+          isActive: true,
+          room: {
+            hostelId: Number(hostelId),
+          },
+        },
+      };
+    }
+
+    if (registrationNo) {
+      where.registrationNo = {
+        contains: registrationNo,
+        mode: "insensitive",
+      };
+    }
+
+    if (rollNo) {
+      where.rollNo = {
+        contains: rollNo,
+        mode: "insensitive",
+      };
+    }
+
+    if (semester) {
+      where.semester = Number(semester);
+    }
+
+    if (email) {
+      where.user = {
+        email: {
+          contains: email,
+          mode: "insensitive",
+        },
+      };
+    }
+
     const students = await prisma.student.findMany({
-      where: hostelId
-        ? {
-            roomAllocations: {
-              some: {
-                isActive: true,
-                room: {
-                  hostelId: Number(hostelId),
-                },
-              },
-            },
-          }
-        : undefined,
+      where,
       include: {
         roomAllocations: {
           where: {

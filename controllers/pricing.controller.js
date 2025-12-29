@@ -33,7 +33,7 @@ export const getPricingPlan = async (req, res) => {
 // Create a new pricing plan
 export const createPricingPlan = async (req, res) => {
   try {
-    const { name, semester, year, price } = req.body;
+    const { name, semester, year, price, isExistingStudent } = req.body;
 
     if (!name || !semester || !year || !price) {
       return res.status(400).json({
@@ -43,24 +43,20 @@ export const createPricingPlan = async (req, res) => {
 
     const existingPlan = await prisma.pricingPlan.findFirst({
       where: {
-        OR: [
+        AND: [
           {
-            name: name,
+            semester: Number.parseInt(semester),
           },
           {
-            AND: [
-              {
-                semester: Number.parseInt(semester),
-              },
-              {
-                year: Number.parseInt(year),
-              },
-            ],
+            year: Number.parseInt(year),
+          },
+          {
+            isExistingStudent: isExistingStudent,
           },
         ],
       },
     });
-
+    console.log("existingPlan: ", existingPlan);
     if (existingPlan) {
       return res.status(400).json({
         message:
@@ -74,6 +70,7 @@ export const createPricingPlan = async (req, res) => {
         semester: Number.parseInt(semester),
         year: Number.parseInt(year),
         price: Number.parseFloat(price),
+        isExistingStudent,
       },
     });
 
@@ -82,6 +79,13 @@ export const createPricingPlan = async (req, res) => {
       pricingPlan,
     });
   } catch (error) {
+    console.log('error: ', error);
+    if (error.code == "P2002") {
+      return res.status(500).json({
+        message:
+          "A pricing plan with the same name or for the same semester and year already exists ",
+      });
+    }
     console.error("Error creating pricing plan:", error);
     res.status(500).json({ message: "Internal server error" });
   }
@@ -91,7 +95,7 @@ export const createPricingPlan = async (req, res) => {
 export const updatePricingPlan = async (req, res) => {
   try {
     const { planId } = req.params;
-    const { name, semester, year, price } = req.body;
+    const { name, semester, year, price, isExistingStudent } = req.body;
 
     if (!name && !semester && !year && !price) {
       return res.status(400).json({
@@ -99,21 +103,60 @@ export const updatePricingPlan = async (req, res) => {
       });
     }
 
-    const existingPlan = await prisma.pricingPlan.findUnique({
-      where: { id: Number.parseInt(planId) },
+    const existingPlanById = await prisma.pricingPlan.findFirst({
+      where: {
+        id: parseInt(planId),
+      },
     });
-
-    if (!existingPlan) {
+    if (!existingPlanById) {
       return res.status(404).json({ message: "Pricing plan not found" });
     }
+    console.log("existingPlanById: ", existingPlanById);
+
+    const existingPlan = await prisma.pricingPlan.findFirst({
+      where: {
+        AND: [
+          {
+            semester: Number.parseInt(semester),
+          },
+          {
+            year: Number.parseInt(year),
+          },
+          {
+            isExistingStudent: isExistingStudent,
+          },
+        ],
+      },
+    });
+
+    // if (existingPlan) {
+    //   return res.status(400).json({
+    //     message:
+    //       "A pricing plan with the same name or for the same semester and year already exists ",
+    //   });
+    // }
 
     const updatedPricingPlan = await prisma.pricingPlan.update({
-      where: { id: Number.parseInt(planId) },
+      where: {
+        id: Number.parseInt(planId),
+        AND: [
+          {
+            semester: Number.parseInt(semester),
+          },
+          {
+            year: Number.parseInt(year),
+          },
+          {
+            isExistingStudent: isExistingStudent,
+          },
+        ],
+      },
       data: {
         name,
         semester: semester ? Number.parseInt(semester) : undefined,
         year: year ? Number.parseInt(year) : undefined,
         price: price ? Number.parseFloat(price) : undefined,
+        isExistingStudent: isExistingStudent,
       },
     });
 
@@ -123,6 +166,12 @@ export const updatePricingPlan = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating pricing plan:", error);
+    if (error.code == "P2002") {
+      return res.status(500).json({
+        message:
+          "A pricing plan with the same name or for the same semester and year already exists ",
+      });
+    }
     res.status(500).json({ message: "Internal server error" });
   }
 };

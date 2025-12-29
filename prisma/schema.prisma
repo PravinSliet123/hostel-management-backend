@@ -40,29 +40,29 @@ enum RoomType {
 }
 
 model User {
-  id                Int                @id @default(autoincrement())
-  email             String             @unique
-  password          String
-  role              UserRole
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  student           Student?
-  warden            Warden?
-  admin             Admin?
-  payments          Payment[]
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  role      UserRole
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  student   Student?
+  warden    Warden?
+  admin     Admin?
+  payments  Payment[]
 }
 
 model Student {
-  id                    Int              @id @default(autoincrement())
-  userId                Int              @unique
-  user                  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    Int                @id @default(autoincrement())
+  userId                Int                @unique
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   fullName              String
   fatherName            String
   gender                String
   department            String
   rank                  Int
-  registrationNo        String           @unique
-  rollNo                String           @unique
+  registrationNo        String             @unique
+  rollNo                String             @unique
   year                  Int
   semester              Int
   aadharNo              String
@@ -70,14 +70,14 @@ model Student {
   address               String
   pinCode               String
   distanceFromCollege   Float
-  adharCard             String?          @default("")
-  registrationCard      String?          @default("")
-  photo                 String?          @default("")
-  prevSemesterMarksheet String?          @default("")
+  adharCard             String?            @default("")
+  registrationCard      String?            @default("")
+  photo                 String?            @default("")
+  prevSemesterMarksheet String?            @default("")
   roomAllocations       RoomAllocation[]
-  hostelApplication     HostelApplication?
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
+  hostelApplication     HostelApplication[]
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 }
 
 model Warden {
@@ -106,38 +106,38 @@ model Admin {
 }
 
 model Hostel {
-  id          Int            @id @default(autoincrement())
-  name        String         @unique
-  type        HostelType
-  totalRooms  Int            @default(0)
-  vacantRooms Int            @default(0)
-  rooms       Room[]
-  wardens     WardenHostel[]
+  id                 Int                 @id @default(autoincrement())
+  name               String              @unique
+  type               HostelType
+  totalRooms         Int                 @default(0)
+  vacantRooms        Int                 @default(0)
+  rooms              Room[]
+  wardens            WardenHostel[]
   hostelApplications HostelApplication[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
 
 model Room {
-  id          Int              @id @default(autoincrement())
-  roomNumber  String
-  roomType    RoomType
-  totalSeats  Int
-  vacantSeats Int
-  hostelId    Int
-  hostel      Hostel           @relation(fields: [hostelId], references: [id])
-  allocations RoomAllocation[]
+  id                 Int                 @id @default(autoincrement())
+  roomNumber         String
+  roomType           RoomType
+  totalSeats         Int
+  vacantSeats        Int
+  hostelId           Int
+  hostel             Hostel              @relation(fields: [hostelId], references: [id])
+  allocations        RoomAllocation[]
   hostelApplications HostelApplication[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@unique([hostelId, roomNumber])
 }
 
 model HostelApplication {
   id          Int               @id @default(autoincrement())
+  studentId   Int
   student     Student           @relation(fields: [studentId], references: [id])
-  studentId   Int               @unique
   hostel      Hostel            @relation(fields: [hostelId], references: [id])
   hostelId    Int
   room        Room              @relation(fields: [roomId], references: [id])
@@ -190,24 +190,27 @@ model RoomAllocation {
   deallocatedAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
   @@index([studentId, isActive])
 }
 
 model masterStudents {
-  id             Int      @id @default(autoincrement())
-  fullName       String
-  registrationNo String   @unique
-  rollNo         String   @unique
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                Int      @id @default(autoincrement())
+  fullName          String
+  registrationNo    String   @unique
+  rollNo            String   @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  isExistingStudent Boolean  @default(false)
 }
 
 model PricingPlan {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  semester  Int
-  year      Int
-  price     Float
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                Int      @id @default(autoincrement())
+  name              String   @unique
+  semester          Int
+  year              Int
+  price             Float
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  isExistingStudent Boolean  @default(false)
 }
