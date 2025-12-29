@@ -724,15 +724,13 @@ export const getAllStudents = async (req, res) => {
 
     if (registrationNo) {
       where.registrationNo = {
-        contains: registrationNo,
-        mode: "insensitive",
+        contains: registrationNo
       };
     }
 
     if (rollNo) {
       where.rollNo = {
         contains: rollNo,
-        mode: "insensitive",
       };
     }
 
@@ -743,8 +741,7 @@ export const getAllStudents = async (req, res) => {
     if (email) {
       where.user = {
         email: {
-          contains: email,
-          mode: "insensitive",
+          contains: email
         },
       };
     }
