@@ -2615,49 +2615,73 @@ export const bulkUpsertMasterStudents = async (req, res) => {
     const { students } = req.body;
 
     if (!Array.isArray(students) || students.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "Students array is required and cannot be empty" });
+      return res.status(400).json({
+        message: "Students array is required and cannot be empty",
+      });
     }
 
-    const results = await prisma.$transaction(async (tx) => {
-      const upsertedStudents = [];
-      for (const student of students) {
-        const { registrationNo, rollNo, ...data } = student;
+    // Remove empty rows
+    const validStudents = students.filter((student) => {
+      return (
+        student.fullName?.trim() &&
+        student.registrationNo?.trim() &&
+        student.rollNo?.trim()
+      );
+    });
 
-        const existingStudent = await tx.masterStudents.findFirst({
+    const upsertedStudents = [];
+
+    for (const student of validStudents) {
+      const { registrationNo, rollNo, ...data } = student;
+
+      const existingStudent = await prisma.masterStudents.findFirst({
+        where: {
+          OR: [
+            { registrationNo },
+            { rollNo },
+          ],
+        },
+      });
+
+      if (existingStudent) {
+        const updatedStudent = await prisma.masterStudents.update({
           where: {
-            OR: [{ registrationNo }, { rollNo }],
+            id: existingStudent.id,
+          },
+          data: {
+            registrationNo,
+            rollNo,
+            ...data,
           },
         });
 
-        if (existingStudent) {
-          const updatedStudent = await tx.masterStudents.update({
-            where: { id: existingStudent.id },
-            data,
-          });
-          upsertedStudents.push(updatedStudent);
-        } else {
-          const createdStudent = await tx.masterStudents.create({
-            data: {
-              registrationNo,
-              rollNo,
-              ...data,
-            },
-          });
-          upsertedStudents.push(createdStudent);
-        }
-      }
-      return upsertedStudents;
-    });
+        upsertedStudents.push(updatedStudent);
+      } else {
+        const createdStudent = await prisma.masterStudents.create({
+          data: {
+            registrationNo,
+            rollNo,
+            ...data,
+          },
+        });
 
-    res.status(200).json({
+        upsertedStudents.push(createdStudent);
+      }
+    }
+
+    return res.status(200).json({
       message: "Master student data upserted successfully",
-      count: results.length,
+      totalReceived: students.length,
+      totalProcessed: validStudents.length,
+      totalSkipped: students.length - validStudents.length,
+      count: upsertedStudents.length,
     });
   } catch (error) {
     console.error("Error in bulk upsert of master students:", error);
-    res.status(500).json({ message: "Internal server error" });
+
+    return res.status(500).json({
+      message: error.message,
+    });
   }
 };
 
