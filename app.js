@@ -186,7 +186,7 @@ app.get("/api/get-hostel-public", async (req, res) => {
 })
 
 
-app.post("/api/create-admin", async (req, res) => {
+app.post("/api/create-admin", authenticateToken, async (req, res) => {
   try {
     const { email, password, fullName } = req.body
 
