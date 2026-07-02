@@ -186,75 +186,75 @@ app.get("/api/get-hostel-public", async (req, res) => {
 })
 
 
-// app.post("/api/create-admin", async (req, res) => {
-//   try {
-//     const { email, password, fullName } = req.body
+app.post("/api/create-admin", async (req, res) => {
+  try {
+    const { email, password, fullName } = req.body
 
-//     // Check if user already exists
-//     const existingUser = await prisma.user.findUnique({
-//       where: { email },
-//     })
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    })
 
-//     if (existingUser) {
-//       return res.status(400).json({ message: "User already exists" })
-//     }
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" })
+    }
 
-//     // Hash password
-//     const hashedPassword = await bcrypt.hash(password, 10)
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10)
 
-//     // Create user and admin in a transaction
-//     const result = await prisma.$transaction(async (tx) => {
-//       // Create user
-//       const user = await tx.user.create({
-//         data: {
-//           email,
-//           password: hashedPassword,
-//           role: "ADMIN",
-//         },
-//       })
+    // Create user and admin in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create user
+      const user = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          role: "ADMIN",
+        },
+      })
 
-//       // Create admin profile
-//       const admin = await tx.admin.create({
-//         data: {
-//           userId: user.id,
-//           fullName,
-//         },
-//       })
+      // Create admin profile
+      const admin = await tx.admin.create({
+        data: {
+          userId: user.id,
+          fullName,
+        },
+      })
 
-//       return { user, admin }
-//     })
+      return { user, admin }
+    })
 
-//     // Send welcome email
-//     try {
-//       await sendEMail({
-//         to: email,
-//         subject: "Your Account Credentials",
-//         html: `
-//       <p>Hello ${fullName},</p>
-//       <p>Your account has been created. </br> Now you can login to system </p>
-//       <p><strong>Login Id:</strong> ${email}</p>
-//       <p><strong>Password:</strong> ${password}</p>
-//     `,
-//       });
-//     } catch (emailError) {
-//       console.error("Error sending welcome email:", emailError)
-//       // Continue with the response even if email fails
-//     }
+    // Send welcome email
+    try {
+      await sendEMail({
+        to: email,
+        subject: "Your Account Credentials",
+        html: `
+      <p>Hello ${fullName},</p>
+      <p>Your account has been created. </br> Now you can login to system </p>
+      <p><strong>Login Id:</strong> ${email}</p>
+      <p><strong>Password:</strong> ${password}</p>
+    `,
+      });
+    } catch (emailError) {
+      console.error("Error sending welcome email:", emailError)
+      // Continue with the response even if email fails
+    }
 
-//     res.status(201).json({
-//       message: "Admin created successfully",
-//       admin: {
-//         id: result.admin.id,
-//         fullName: result.admin.fullName,
-//         email: result.user.email,
-//         password: password
-//       }
-//     })
-//   } catch (error) {
-//     console.error("Error creating admin:", error)
-//     res.status(500).json({ message: "Internal server error" })
-//   }
-// })
+    res.status(201).json({
+      message: "Admin created successfully",
+      admin: {
+        id: result.admin.id,
+        fullName: result.admin.fullName,
+        email: result.user.email,
+        password: password
+      }
+    })
+  } catch (error) {
+    console.error("Error creating admin:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+})
 app.use("/api/auth", authRoutes)
 app.use("/api/students", authenticateToken, studentRoutes)
 app.use("/api/wardens", authenticateToken, wardenRoutes)
