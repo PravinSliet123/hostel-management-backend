@@ -2646,64 +2646,25 @@ export const bulkUpsertMasterStudents = async (req, res) => {
       });
     }
 
-    // Pre-fetch all matching existing students in one query
-    const registrationNumbers = validStudents.map(s => s.registrationNo);
-    const rollNumbers = validStudents.map(s => s.rollNo);
-
-    const existingStudents = await prisma.masterStudents.findMany({
-      where: {
-        OR: [
-          { registrationNo: { in: registrationNumbers } },
-          { rollNo: { in: rollNumbers } }
-        ]
-      }
+    // Use createMany with skipDuplicates to ignore existing records
+    const createdStudents = await prisma.masterStudents.createMany({
+      data: validStudents.map((student) => {
+        const { registrationNo, rollNo, ...data } = student;
+        return {
+          registrationNo,
+          rollNo,
+          ...data,
+        };
+      }),
+      skipDuplicates: true,
     });
-
-    // Create maps for quick lookup
-    const existingByRegNo = new Map();
-    const existingByRollNo = new Map();
-    
-    for (const student of existingStudents) {
-      if (student.registrationNo) existingByRegNo.set(student.registrationNo, student);
-      if (student.rollNo) existingByRollNo.set(student.rollNo, student);
-    }
-
-    const operations = validStudents.map((student) => {
-      const { registrationNo, rollNo, ...data } = student;
-      
-      const existingStudent = existingByRegNo.get(registrationNo) || existingByRollNo.get(rollNo);
-
-      if (existingStudent) {
-        return prisma.masterStudents.update({
-          where: {
-            id: existingStudent.id,
-          },
-          data: {
-            registrationNo,
-            rollNo,
-            ...data,
-          },
-        });
-      } else {
-        return prisma.masterStudents.create({
-          data: {
-            registrationNo,
-            rollNo,
-            ...data,
-          },
-        });
-      }
-    });
-
-    // Execute all operations in a transaction
-    const upsertedStudents = await prisma.$transaction(operations);
 
     return res.status(200).json({
-      message: "Master student data upserted successfully",
+      message: "Master student data processed successfully",
       totalReceived: students.length,
       totalProcessed: validStudents.length,
-      totalSkipped: students.length - validStudents.length,
-      count: upsertedStudents.length,
+      totalSkipped: students.length - validStudents.length + (validStudents.length - createdStudents.count),
+      count: createdStudents.count,
     });
   } catch (error) {
     console.error("Error in bulk upsert of master students:", error);
