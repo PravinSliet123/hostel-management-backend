@@ -127,9 +127,9 @@ export const createRoom = async (req, res) => {
 
     // Validate totalSeats based on roomType
     const expectedSeats = {
-      SINGLE: 1,
-      DOUBLE: 2,
-      TRIPLE: 3,
+      SINGLE: 3,
+      DOUBLE: 4,
+      TRIPLE: 6,
     };
 
     if (totalSeatsNum !== expectedSeats[roomType]) {
@@ -320,16 +320,15 @@ export const updateRoom = async (req, res) => {
     // Validate totalSeats and roomType consistency if both are being updated
     if (updateData.totalSeats && updateData.roomType) {
       const expectedSeats = {
-        SINGLE: 1,
-        DOUBLE: 2,
-        TRIPLE: 3,
+        SINGLE: 3,
+        DOUBLE: 4,
+        TRIPLE: 6,
       };
 
       if (updateData.totalSeats !== expectedSeats[updateData.roomType]) {
         return res.status(400).json({
-          message: `Total seats must be ${
-            expectedSeats[updateData.roomType]
-          } for ${updateData.roomType} room type`,
+          message: `Total seats must be ${expectedSeats[updateData.roomType]
+            } for ${updateData.roomType} room type`,
         });
       }
     }
@@ -1380,6 +1379,7 @@ export const deleteWarden = async (req, res) => {
 export const deleteStudent = async (req, res) => {
   try {
     const { studentId } = req.params;
+    console.log("studentId: ", studentId);
 
     // Check if student exists and get their details
     const student = await prisma.student.findUnique({
@@ -1417,31 +1417,42 @@ export const deleteStudent = async (req, res) => {
       await tx.roomAllocation.deleteMany({
         where: { studentId: Number.parseInt(studentId) },
       });
+      await tx.roomAllocation.deleteMany({
+        where: { studentId: Number.parseInt(studentId) },
+      });
 
+      await tx.user.delete({
+        where: { id: student.userId },
+      });
       // Delete the student
       await tx.student.delete({
         where: { id: Number.parseInt(studentId) },
       });
 
       // Delete the associated user
-      await tx.user.delete({
-        where: { id: student.userId },
-      });
+
     });
 
     // Send email notification
-    await sendEMail({
-      to: student.user.email,
-      subject: "Your Account Deleted",
-      html: `
-    <p>Hello ${student.fullName},</p>
-    <p> Your warden account has been deleted from the system.</p>
-  `,
-    });
+
 
     res.status(200).json({
       message: "Student deleted successfully",
     });
+
+    try {
+      console.log("Sending email to:", student.user.email);
+      await sendEMail({
+        to: student.user.email,
+        subject: "Your Account Deleted",
+        html: `
+    <p>Hello ${student.fullName},</p>
+    <p> Your warden account has been deleted from the system.</p>
+  `,
+      });
+    } catch (error) {
+
+    }
   } catch (error) {
     console.error("Error deleting student:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -1623,9 +1634,8 @@ export const allocateRoom = async (req, res) => {
 
         <p>Hello ${student.fullName || "Student"},</p>
 
-        <p>We regret to inform you that your hostel application for semester ${
-          student.semester
-        },
+        <p>We regret to inform you that your hostel application for semester ${student.semester
+              },
         year ${student.year}, has been <strong>rejected</strong>.</p>
 
         <p>Please review your submitted details or contact the Hostel Management Team
@@ -1726,11 +1736,9 @@ export const allocateRoom = async (req, res) => {
 
     if (!pricingPlan) {
       return res.status(404).json({
-        message: `Pricing plan for semester ${student.semester} and year ${
-          student.year
-        } for ${
-          masterStudent?.isExistingStudent ? "existing" : "new"
-        } students not found`,
+        message: `Pricing plan for semester ${student.semester} and year ${student.year
+          } for ${masterStudent?.isExistingStudent ? "existing" : "new"
+          } students not found`,
       });
     }
 
@@ -1806,8 +1814,7 @@ export const allocateRoom = async (req, res) => {
         html: `<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
           <h2 style='color: #333;'>Hostel Allocation Successful</h2>
           <p>Hello ${student.fullName || "Student"},</p>
-          <p>Your room has been successfully allocated for semester ${
-            student.semester
+          <p>Your room has been successfully allocated for semester ${student.semester
           }, year ${student.year}.</p>
           
           <h3>Allocation Details:</h3>

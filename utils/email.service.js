@@ -11,19 +11,24 @@ export const sendEMail = async ({ to, subject, html, attachments }) => {
     },
   });
 
-  await transporter.sendMail({
-    from: {
-      name: "Hostel Management System Buxar Support",
-      address: process.env.EMAIL_FROM,
-    },
-    to,
-    subject,
-    html,
-    attachments: attachments || [],     // ⬅ IMPORTANT
-  });
-};
+  try {
+    await transporter.sendMail({
+      from: {
+        name: "Hostel Management System Buxar Support",
+        address: process.env.EMAIL_FROM,
+      },
+      to,
+      subject,
+      html,
+      attachments: attachments || [],     // ⬅ IMPORTANT
+    });
+  } catch (error) {
+    console.error("Error sending email:", error);
+    throw error;
+  };
+}
 
-export const forgotPasswordEmailHTML = ({ name, resetLink }) => `
+  export const forgotPasswordEmailHTML = ({ name, resetLink }) => `
 <!DOCTYPE html>
 <html>
 <head>

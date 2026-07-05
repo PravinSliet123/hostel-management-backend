@@ -53,16 +53,16 @@ model User {
 }
 
 model Student {
-  id                    Int                @id @default(autoincrement())
-  userId                Int                @unique
-  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    Int                 @id @default(autoincrement())
+  userId                Int                 @unique
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   fullName              String
   fatherName            String
   gender                String
   department            String
   rank                  Int
-  registrationNo        String             @unique
-  rollNo                String             @unique
+  registrationNo        String              @unique
+  rollNo                String              @unique
   year                  Int
   semester              Int
   aadharNo              String
@@ -70,14 +70,16 @@ model Student {
   address               String
   pinCode               String
   distanceFromCollege   Float
-  adharCard             String?            @default("")
-  registrationCard      String?            @default("")
-  photo                 String?            @default("")
-  prevSemesterMarksheet String?            @default("")
+  adharCard             String?             @default("")
+  registrationCard      String?             @default("")
+  photo                 String?             @default("")
+  prevSemesterMarksheet String?             @default("")
   roomAllocations       RoomAllocation[]
   hostelApplication     HostelApplication[]
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  guardianPhoneNumber   String
+  previousSemesterMarks Float
 }
 
 model Warden {

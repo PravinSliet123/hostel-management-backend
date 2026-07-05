@@ -43,8 +43,11 @@ export const registerStudent = async (req, res) => {
       registrationCard,
       photo,
       prevSemesterMarksheet,
+      previousSemesterMarks,
+      guardianPhoneNumber,
+      aadharCard
     } = req.body;
-    console.log("Body=>", req.body);
+    console.log("Body=>", aadharCard);
     // Generate a random password
     const generatedPassword = generatePassword();
 
@@ -154,9 +157,9 @@ export const registerStudent = async (req, res) => {
 
         // Validate room type and seats
         const expectedSeats = {
-          SINGLE: 1,
-          DOUBLE: 2,
-          TRIPLE: 3,
+          SINGLE: 3,
+          DOUBLE: 4,
+          TRIPLE: 6,
         };
 
         if (room.totalSeats !== expectedSeats[room.roomType]) {
@@ -210,10 +213,12 @@ export const registerStudent = async (req, res) => {
             address,
             pinCode,
             distanceFromCollege: numericFields.distanceFromCollege,
-            adharCard,
+            adharCard:aadharCard?aadharCard:'',
             registrationCard,
             photo,
             prevSemesterMarksheet,
+            guardianPhoneNumber,
+            previousSemesterMarks:Number.parseFloat(previousSemesterMarks),
           },
         });
 
