@@ -15,15 +15,14 @@ export const generateHostelApplicationPDF = (studentData) => {
     doc
       .fontSize(16)
       .font("Helvetica-Bold")
-      .text("Government Polytechnic Buxar", { align: "center" });
+      .text("Government Polytechnic Patna-7", { align: "center" });
     doc
       .fontSize(14)
       .text("Hostel Registration Application Form", { align: "center" });
     doc
       .fontSize(12)
       .text(
-        `Academic Session: ${new Date().getFullYear()}-${
-          new Date().getFullYear() + 1
+        `Academic Session: ${new Date().getFullYear()}-${new Date().getFullYear() + 1
         }`,
         { align: "center" }
       );
@@ -114,7 +113,7 @@ export const generateInvoicePDF = (invoiceData) => {
     doc
       .fontSize(12)
       .font("Helvetica")
-      .text("Government Polytechnic Buxar", { align: "center" });
+      .text("Government Polytechnic Patna-7", { align: "center" });
     doc.moveDown(2);
 
     // Invoice Details
@@ -158,10 +157,9 @@ export const generateInvoicePDF = (invoiceData) => {
     doc
       .fontSize(10)
       .text(
-        `${
-          payment.status === "PAID"
-            ? "Payment received successfully."
-            : "Please pay the amount before the due date to avoid any penalties."
+        `${payment.status === "PAID"
+          ? "Payment received successfully."
+          : "Please pay the amount before the due date to avoid any penalties."
         }`,
         { align: "center" }
       );

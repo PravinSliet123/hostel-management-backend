@@ -14,7 +14,7 @@ export const sendEMail = async ({ to, subject, html, attachments }) => {
   try {
     await transporter.sendMail({
       from: {
-        name: "Hostel Management System Buxar Support",
+        name: "Hostel Management System Patna-7 Support",
         address: process.env.EMAIL_FROM,
       },
       to,
@@ -28,7 +28,7 @@ export const sendEMail = async ({ to, subject, html, attachments }) => {
   };
 }
 
-  export const forgotPasswordEmailHTML = ({ name, resetLink }) => `
+export const forgotPasswordEmailHTML = ({ name, resetLink }) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -75,7 +75,7 @@ export const sendEMail = async ({ to, subject, html, attachments }) => {
               <hr style="border: none; border-top: 1px solid #eee;" />
 
               <p style="color: #999; font-size: 12px;">
-                Hostel Management System Buxar Support
+                Hostel Management System Patna-7 Support
               </p>
             </td>
           </tr>
