@@ -2636,22 +2636,45 @@ export const bulkUpsertMasterStudents = async (req, res) => {
       );
     });
 
-    const upsertedStudents = [];
-
-    for (const student of validStudents) {
-      const { registrationNo, rollNo, ...data } = student;
-
-      const existingStudent = await prisma.masterStudents.findFirst({
-        where: {
-          OR: [
-            { registrationNo },
-            { rollNo },
-          ],
-        },
+    if (validStudents.length === 0) {
+      return res.status(200).json({
+        message: "No valid students found to upsert",
+        totalReceived: students.length,
+        totalProcessed: 0,
+        totalSkipped: students.length,
+        count: 0,
       });
+    }
+
+    // Pre-fetch all matching existing students in one query
+    const registrationNumbers = validStudents.map(s => s.registrationNo);
+    const rollNumbers = validStudents.map(s => s.rollNo);
+
+    const existingStudents = await prisma.masterStudents.findMany({
+      where: {
+        OR: [
+          { registrationNo: { in: registrationNumbers } },
+          { rollNo: { in: rollNumbers } }
+        ]
+      }
+    });
+
+    // Create maps for quick lookup
+    const existingByRegNo = new Map();
+    const existingByRollNo = new Map();
+    
+    for (const student of existingStudents) {
+      if (student.registrationNo) existingByRegNo.set(student.registrationNo, student);
+      if (student.rollNo) existingByRollNo.set(student.rollNo, student);
+    }
+
+    const operations = validStudents.map((student) => {
+      const { registrationNo, rollNo, ...data } = student;
+      
+      const existingStudent = existingByRegNo.get(registrationNo) || existingByRollNo.get(rollNo);
 
       if (existingStudent) {
-        const updatedStudent = await prisma.masterStudents.update({
+        return prisma.masterStudents.update({
           where: {
             id: existingStudent.id,
           },
@@ -2661,20 +2684,19 @@ export const bulkUpsertMasterStudents = async (req, res) => {
             ...data,
           },
         });
-
-        upsertedStudents.push(updatedStudent);
       } else {
-        const createdStudent = await prisma.masterStudents.create({
+        return prisma.masterStudents.create({
           data: {
             registrationNo,
             rollNo,
             ...data,
           },
         });
-
-        upsertedStudents.push(createdStudent);
       }
-    }
+    });
+
+    // Execute all operations in a transaction
+    const upsertedStudents = await prisma.$transaction(operations);
 
     return res.status(200).json({
       message: "Master student data upserted successfully",
