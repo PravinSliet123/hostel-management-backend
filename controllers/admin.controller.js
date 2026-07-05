@@ -4,6 +4,12 @@ import { sendEMail } from "../utils/email.service.js";
 import { generateInvoicePDF } from "../utils/pdf.generator.js";
 import { generateRandomPassword } from "../utils/password.generator.js";
 
+const roomMap = {
+  SINGLE: "Triple Bed",
+  DOUBLE: "Four Bed",
+  TRIPLE: "Six Bed",
+};
+
 // Get all hostels
 export const getAllHostels = async (req, res) => {
   try {
@@ -1821,7 +1827,7 @@ export const allocateRoom = async (req, res) => {
           <ul>
             <li><strong>Hostel:</strong> ${allocatedRoom.hostel.name}</li>
             <li><strong>Room Number:</strong> ${allocatedRoom.roomNumber}</li>
-            <li><strong>Room Type:</strong> ${allocatedRoom.roomType}</li>
+            <li><strong>Room Type:</strong> ${roomMap[allocatedRoom.roomType]}</li>
           </ul>
 
           <h3>Student Details:</h3>
