@@ -2812,3 +2812,28 @@ export const deleteApplication = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const getStudentApplications = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const studentIdNum = Number.parseInt(studentId);
+    if (isNaN(studentIdNum)) {
+      return res.status(400).json({ message: "studentId must be a valid number" });
+    }
+
+    const applications = await prisma.hostelApplication.findMany({
+      where: { studentId: studentIdNum },
+      orderBy: { createdAt: "desc" },
+      include: {
+        hostel: { select: { id: true, name: true, type: true } },
+        room: { select: { id: true, roomNumber: true, roomType: true } },
+      },
+    });
+
+    res.status(200).json({ data: applications });
+  } catch (error) {
+    console.error("Error fetching student applications:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};

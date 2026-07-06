@@ -39,6 +39,7 @@ import {
   getAllMasterStudents,
   getAllApplications,
   deleteApplication,
+  getStudentApplications,
 } from "../controllers/admin.controller.js"
 import { checkRole } from "../middleware/auth.middleware.js"
 import { 
@@ -93,6 +94,13 @@ router.get("/students/:studentId", (req, res, next) => {
     res.status(403).json({ message: "Access denied" })
   }
 }, getStudent)
+router.get("/students/:studentId/applications", (req, res, next) => {
+  if (req.user.role === "ADMIN" || req.user.role === "WARDEN") {
+    next()
+  } else {
+    res.status(403).json({ message: "Access denied" })
+  }
+}, getStudentApplications)
 router.patch("/students/:studentId", (req, res, next) => {
   if (req.user.role === "ADMIN" || req.user.role === "WARDEN") {
     next()

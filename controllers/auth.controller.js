@@ -45,7 +45,9 @@ export const registerStudent = async (req, res) => {
       prevSemesterMarksheet,
       previousSemesterMarks,
       guardianPhoneNumber,
-      aadharCard
+      aadharCard,
+      isAnyQuery,
+      numberOfQuery,
     } = req.body;
     console.log("Body=>", aadharCard);
     // Generate a random password
@@ -219,6 +221,8 @@ export const registerStudent = async (req, res) => {
             prevSemesterMarksheet,
             guardianPhoneNumber,
             previousSemesterMarks:Number.parseFloat(previousSemesterMarks),
+            isAnyQuery: isAnyQuery === true || isAnyQuery === 'true',
+            numberOfQuery: numberOfQuery ? Number.parseInt(numberOfQuery) : null,
           },
         });
 

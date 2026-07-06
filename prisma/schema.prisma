@@ -80,6 +80,8 @@ model Student {
   updatedAt             DateTime            @updatedAt
   guardianPhoneNumber   String
   previousSemesterMarks Float
+  isAnyQuery            Boolean             @default(false)
+  numberOfQuery         Int?
 }
 
 model Warden {
