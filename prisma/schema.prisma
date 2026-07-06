@@ -153,7 +153,7 @@ model HostelApplication {
 
 model Payment {
   id          Int           @id @default(autoincrement())
-  user        User          @relation(fields: [userId], references: [id])
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      Int
   amount      Float
   description String

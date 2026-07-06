@@ -1423,20 +1423,21 @@ export const deleteStudent = async (req, res) => {
       await tx.roomAllocation.deleteMany({
         where: { studentId: Number.parseInt(studentId) },
       });
-      await tx.roomAllocation.deleteMany({
+
+      // Delete all hostel applications
+      await tx.hostelApplication.deleteMany({
         where: { studentId: Number.parseInt(studentId) },
       });
 
-      await tx.user.delete({
-        where: { id: student.userId },
-      });
       // Delete the student
       await tx.student.delete({
         where: { id: Number.parseInt(studentId) },
       });
 
       // Delete the associated user
-
+      await tx.user.delete({
+        where: { id: student.userId },
+      });
     });
 
     // Send email notification
