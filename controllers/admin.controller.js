@@ -446,6 +446,15 @@ export const deleteRoom = async (req, res) => {
             student: true,
           },
         },
+        hostelApplications: {
+          include: {
+            student: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -484,6 +493,20 @@ export const deleteRoom = async (req, res) => {
           id: allocation.student.id,
           fullName: allocation.student.fullName,
           registrationNo: allocation.student.registrationNo,
+        })),
+      });
+    }
+
+    // Check if there are hostel applications for this room
+    if (room.hostelApplications && room.hostelApplications.length > 0) {
+      return res.status(400).json({
+        message:
+          "Cannot delete room. There are pending or active hostel applications for this room. Please delete those applications first.",
+        applications: room.hostelApplications.map((app) => ({
+          applicationId: app.id,
+          studentName: app.student.fullName,
+          studentEmail: app.student.user?.email,
+          status: app.status,
         })),
       });
     }
@@ -2718,7 +2741,7 @@ export const getAllMasterStudents = async (req, res) => {
 };
 export const getAllApplications = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, hostelId } = req.query;
+    const { page = 1, limit = 10, status, hostelId, roomId } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
 
@@ -2730,6 +2753,9 @@ export const getAllApplications = async (req, res) => {
     }
     if (hostelId) {
       whereClause.hostelId = parseInt(hostelId);
+    }
+    if (roomId) {
+      whereClause.roomId = parseInt(roomId);
     }
 
     const [applications, total] = await prisma.$transaction([
@@ -2760,6 +2786,29 @@ export const getAllApplications = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching applications:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const deleteApplication = async (req, res) => {
+  try {
+    const { applicationId } = req.params;
+
+    const application = await prisma.hostelApplication.findUnique({
+      where: { id: Number.parseInt(applicationId) },
+    });
+
+    if (!application) {
+      return res.status(404).json({ message: "Application not found" });
+    }
+
+    await prisma.hostelApplication.delete({
+      where: { id: Number.parseInt(applicationId) },
+    });
+
+    res.status(200).json({ message: "Application deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting application:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
